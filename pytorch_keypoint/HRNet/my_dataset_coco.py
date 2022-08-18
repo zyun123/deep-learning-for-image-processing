@@ -17,13 +17,21 @@ class CocoKeypoint(data.Dataset):
                  det_json_path=None,
                  fixed_size=(256, 192)):
         super().__init__()
-        assert dataset in ["train", "val"], 'dataset must be in ["train", "val"]'
-        anno_file = f"person_keypoints_{dataset}{years}.json"
+        assert dataset in ["train", "test"], 'dataset must be in ["train", "test"]'
+        # anno_file = f"person_keypoints_{dataset}{years}.json"
+        # assert os.path.exists(root), "file '{}' does not exist.".format(root)
+        # self.img_root = os.path.join(root, f"{dataset}{years}")
+        # assert os.path.exists(self.img_root), "path '{}' does not exist.".format(self.img_root)
+        # self.anno_path = os.path.join(root, "annotations", anno_file)
+        # assert os.path.exists(self.anno_path), "file '{}' does not exist.".format(self.anno_path)
+
+        anno_file = f"{dataset}.json"
         assert os.path.exists(root), "file '{}' does not exist.".format(root)
-        self.img_root = os.path.join(root, f"{dataset}{years}")
+        self.img_root = os.path.join(root,f"{dataset}")
         assert os.path.exists(self.img_root), "path '{}' does not exist.".format(self.img_root)
-        self.anno_path = os.path.join(root, "annotations", anno_file)
+        self.anno_path = os.path.join(root,anno_file)
         assert os.path.exists(self.anno_path), "file '{}' does not exist.".format(self.anno_path)
+
 
         self.fixed_size = fixed_size
         self.mode = dataset

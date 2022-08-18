@@ -153,7 +153,14 @@ class StageModule(nn.Module):
                     sum([self.fuse_layers[i][j](x[j]) for j in range(len(self.branches))])
                 )
             )
+            # layers = []
+            # for j in range(len(self.branches)):
+            #     print("x.shape:",x[j].shape)
+            #     # print(f"x[{j}]:  ",x[j])  #tensor
+            #     print(f"self.fuse_layers[{i}][{j}]",self.fuse_layers[i][j])
+            #     layers.append(self.fuse_layers[i][j](x[j]))
 
+            # x_fused.append(self.relu(sum(layers)))
         return x_fused
 
 

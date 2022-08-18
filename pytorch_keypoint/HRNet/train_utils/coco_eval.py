@@ -120,7 +120,7 @@ class EvalCOCOMetric:
             coco_pre = coco_true.loadRes(self.results_file_name)
 
             self.coco_evaluator = COCOeval(cocoGt=coco_true, cocoDt=coco_pre, iouType=self.iou_type)
-
+            self.coco_evaluator.params.kpt_oks_sigmas = np.ones(coco_true.anns[1]["num_keypoints"],dtype=np.float)*0.006
             self.coco_evaluator.evaluate()
             self.coco_evaluator.accumulate()
             print(f"IoU metric: {self.iou_type}")

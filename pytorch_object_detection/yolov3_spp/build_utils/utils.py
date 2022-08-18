@@ -271,7 +271,7 @@ def compute_loss(p, targets, model):  # predictions, targets, model
 
 def build_targets(p, targets, model):
     # Build targets for compute_loss(), input targets(image_idx,class,x,y,w,h)
-    nt = targets.shape[0]
+    nt = targets.shape[0]   #目标个数
     tcls, tbox, indices, anch = [], [], [], []
     gain = torch.ones(6, device=targets.device)  # normalized to gridspace gain
 
@@ -308,7 +308,7 @@ def build_targets(p, targets, model):
         # gain[3]: grid_h, gain[2]: grid_w
         # image_idx, anchor_idx, grid indices(y, x)
         indices.append((b, a, gj.clamp_(0, gain[3]-1), gi.clamp_(0, gain[2]-1)))
-        tbox.append(torch.cat((gxy - gij, gwh), 1))  # gt box相对anchor的x,y偏移量以及w,h
+        tbox.append(torch.cat((gxy - gij, gwh), 1))  # gt box相对anchor中心即（cell左上角）的x,y偏移量以及w,h
         anch.append(anchors[a])  # anchors
         tcls.append(c)  # class
         if c.shape[0]:  # if any targets

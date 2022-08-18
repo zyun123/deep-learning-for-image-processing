@@ -206,7 +206,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
             if l.shape[0]:
                 # 标签信息每行必须是五个值[class, x, y, w, h]
                 assert l.shape[1] == 5, "> 5 label columns: %s" % file
-                assert (l >= 0).all(), "negative labels: %s" % file
+                assert (l >= 0).all(), "negative labels: %s" % file  #全部大于等于0
                 assert (l[:, 1:] <= 1).all(), "non-normalized or out of bounds coordinate labels: %s" % file
 
                 # 检查每一行，看是否有重复信息
@@ -353,7 +353,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
 
         # Convert BGR to RGB, and HWC to CHW(3x512x512)
         img = img[:, :, ::-1].transpose(2, 0, 1)
-        img = np.ascontiguousarray(img)
+        img = np.ascontiguousarray(img)   #将内存变成连续的
 
         return torch.from_numpy(img), labels_out, self.img_files[index], shapes, index
 
@@ -370,7 +370,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
     def collate_fn(batch):
         img, label, path, shapes, index = zip(*batch)  # transposed
         for i, l in enumerate(label):
-            l[:, 0] = i  # add target image index for build_targets()
+            l[:, 0] = i  # add target image index for build_targets()将图片的索引加在label的最前面，这样就知道gt属于哪个图片
         return torch.stack(img, 0), torch.cat(label, 0), path, shapes, index
 
 
@@ -552,9 +552,9 @@ def augment_hsv(img, h_gain=0.5, s_gain=0.5, v_gain=0.5):
     dtype = img.dtype  # uint8
 
     x = np.arange(0, 256, dtype=np.int16)
-    lut_hue = ((x * r[0]) % 180).astype(dtype)
-    lut_sat = np.clip(x * r[1], 0, 255).astype(dtype)
-    lut_val = np.clip(x * r[2], 0, 255).astype(dtype)
+    lut_hue = ((x * r[0]) % 180).astype(dtype) #取余，限制在0~180之间
+    lut_sat = np.clip(x * r[1], 0, 255).astype(dtype)  #限制在0~255之间
+    lut_val = np.clip(x * r[2], 0, 255).astype(dtype) #限制在0~255之间
 
     img_hsv = cv2.merge((cv2.LUT(hue, lut_hue), cv2.LUT(sat, lut_sat), cv2.LUT(val, lut_val))).astype(dtype)
     cv2.cvtColor(img_hsv, cv2.COLOR_HSV2BGR, dst=img)  # no return needed
