@@ -58,16 +58,17 @@ def main(args):
     data_transform = {
         "train": transforms.Compose([
             # transforms.HalfBody(0.3, person_kps_info["upper_body_ids"], person_kps_info["lower_body_ids"]),
-            transforms.AffineTransform(rotation=(-30, 30), fixed_size=fixed_size),
+            transforms.AffineTransform(rotation=(-5, 5), fixed_size=fixed_size),
             # transforms.RandomHorizontalFlip(0.5, person_kps_info["flip_pairs"]),
-            transforms.KeypointToHeatMap(heatmap_hw=heatmap_hw, gaussian_sigma=2, keypoints_weights=kps_weights),
+            # transforms.KeypointToHeatMap(heatmap_hw=heatmap_hw, gaussian_sigma=2, keypoints_weights=kps_weights),
+            transforms.RcnnKeypointToHeatmap(heatmap_hw=heatmap_hw,keypoints_weights=kps_weights),
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            transforms.Normalize(mean=[0.596, 0.575, 0.554], std=[0.096,0.118,0.169])
         ]),
         "test": transforms.Compose([
             transforms.AffineTransform(fixed_size=fixed_size),
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            transforms.Normalize(mean=[0.596, 0.575, 0.554], std=[0.096,0.118,0.169])
         ])
     }
 
@@ -197,24 +198,24 @@ if __name__ == "__main__":
                         help='person_keypoints.json path')
     # 原项目提供的验证集person检测信息，如果要使用GT信息，直接将该参数置为None，建议设置成None
     parser.add_argument('--person-det', type=str, default=None)
-    parser.add_argument('--fixed-size', default=[288,384], nargs='+', type=int, help='input size')
+    parser.add_argument('--fixed-size', default=[384,640], nargs='+', type=int, help='input size')
     # keypoints点数
     parser.add_argument('--num-joints', default=56, type=int, help='num_joints')
     # 文件保存地址
-    parser.add_argument('--output-dir', default='/911G/EightModelOutputs/models/hrnet_288_384_03', help='path where to save')
+    parser.add_argument('--output-dir', default='/911G/EightModelOutputs/models/hrnet_384_640_use_mse_03', help='path where to save')
     # 若需要接着上次训练，则指定上次训练保存权重文件地址
     parser.add_argument('--resume', default='', type=str, help='resume from checkpoint')
     # 指定接着从哪个epoch数开始训练
     parser.add_argument('--start_epoch', default=0, type=int, help='start epoch')
     # 训练的总epoch数
-    parser.add_argument('--epochs', default=100, type=int, metavar='N',
+    parser.add_argument('--epochs', default=50, type=int, metavar='N',
                         help='number of total epochs to run')
     # 针对torch.optim.lr_scheduler.MultiStepLR的参数
-    parser.add_argument('--lr-steps', default=[80, 90], nargs='+', type=int, help='decrease lr every step-size epochs')
+    parser.add_argument('--lr-steps', default=[30, 40], nargs='+', type=int, help='decrease lr every step-size epochs')
     # 针对torch.optim.lr_scheduler.MultiStepLR的参数
     parser.add_argument('--lr-gamma', default=0.1, type=float, help='decrease lr by a factor of lr-gamma')
     # 学习率
-    parser.add_argument('--lr', default=0.001, type=float,
+    parser.add_argument('--lr', default=0.01, type=float,
                         help='initial learning rate, 0.02 is the default value for training '
                              'on 8 gpus and 2 images_per_gpu')
     # AdamW的weight_decay参数

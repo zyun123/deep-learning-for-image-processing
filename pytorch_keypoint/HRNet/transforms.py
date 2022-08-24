@@ -66,24 +66,24 @@ def get_final_preds(batch_heatmaps: torch.Tensor,
     assert trans is not None
     coords, maxvals = get_max_preds(batch_heatmaps)
 
-    heatmap_height = batch_heatmaps.shape[2]
-    heatmap_width = batch_heatmaps.shape[3]
+    # heatmap_height = batch_heatmaps.shape[2]
+    # heatmap_width = batch_heatmaps.shape[3]
 
-    # post-processing
-    if post_processing:
-        for n in range(coords.shape[0]):
-            for p in range(coords.shape[1]):
-                hm = batch_heatmaps[n][p]
-                px = int(math.floor(coords[n][p][0] + 0.5))
-                py = int(math.floor(coords[n][p][1] + 0.5))
-                if 1 < px < heatmap_width - 1 and 1 < py < heatmap_height - 1:
-                    diff = torch.tensor(
-                        [
-                            hm[py][px + 1] - hm[py][px - 1],
-                            hm[py + 1][px] - hm[py - 1][px]
-                        ]
-                    ).to(batch_heatmaps.device)
-                    coords[n][p] += torch.sign(diff) * .25
+    # # post-processing
+    # if post_processing:
+    #     for n in range(coords.shape[0]):
+    #         for p in range(coords.shape[1]):
+    #             hm = batch_heatmaps[n][p]
+    #             px = int(math.floor(coords[n][p][0] + 0.5))
+    #             py = int(math.floor(coords[n][p][1] + 0.5))
+    #             if 1 < px < heatmap_width - 1 and 1 < py < heatmap_height - 1:
+    #                 diff = torch.tensor(
+    #                     [
+    #                         hm[py][px + 1] - hm[py][px - 1],
+    #                         hm[py + 1][px] - hm[py - 1][px]
+    #                     ]
+    #                 ).to(batch_heatmaps.device)
+    #                 coords[n][p] += torch.sign(diff) * .25
 
     preds = coords.clone().cpu().numpy()
 
@@ -446,16 +446,33 @@ class KeypointToHeatMap(object):
         return image, target
 
 class RcnnKeypointToHeatmap(object):
-    def __init__(self,heatmap_hw: Tuple[int, int] = (256 // 4, 192 // 4)):
+    def __init__(self,heatmap_hw: Tuple[int, int] = (256 // 4, 192 // 4),keypoints_weights=None):
         self.heatmap_hw = heatmap_hw
+        self.scale = 1/4
+        self.kps_weights = keypoints_weights
+        
 
     def __call__(self,image,target):
         kps = target["keypoints"]
-        x = kps[...,0].floor().long()
-        y = kps[...,1].floor().long()
+        num_kps = kps.shape[0]
+        kps_weights = np.ones((num_kps,), dtype=np.float32)
+        # if "visible" in target:
+        #     visible = target["visible"]
+        #     kps_weights = visible
+        kps_weights = np.multiply(kps_weights, self.kps_weights)
+
+
+        x = kps[...,0] * self.scale
+        y = kps[...,1] * self.scale
+        # x = x.floor().long()
+        # y = y.floor().long()
+        x = np.floor(x)
+        y = np.floor(y)
         heatmap = y * self.heatmap_hw[1] +x
 
         target["heatmap"] = torch.as_tensor(heatmap,dtype = torch.int64)
+        target["kps_weights"] = torch.as_tensor(kps_weights, dtype=torch.float32)
+        
 
         return image, target
 
@@ -469,8 +486,9 @@ if __name__ == "__main__":
     img_path = "/911G/data/semi_care_data/middle_down_wai/whole/train/000002.jpg"
     img = cv2.imread(img_path)
     # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    a = AffineTransform(rotation=(-45, 45),fixed_size=(288,384))
-    img_tensor, target = a(img, {"box": [131.12, 47.54,961.19, 561.56]})
+    a = AffineTransform(fixed_size=(768,1280))
+    # img_tensor, target = a(img, {"box": [131.12, 47.54,961.19, 561.56]})
+    img_tensor, target = a(img, {"box": [0, 0,1279, 719]})
     print(img_tensor.shape)
     cv2.imshow("resize_img",img_tensor)
 

@@ -8,7 +8,9 @@ import transforms
 import train_utils.distributed_utils as utils
 from .coco_eval import EvalCOCOMetric
 from .loss import KpLoss
-
+import torch.nn.functional as F
+import os 
+os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 
 def train_one_epoch(model, optimizer, data_loader, device, epoch,
                     print_freq=50, warmup=False, scaler=None):
@@ -24,7 +26,7 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch,
 
         lr_scheduler = utils.warmup_lr_scheduler(optimizer, warmup_iters, warmup_factor)
 
-    mse = KpLoss()
+    mse = KpLoss(use_mse=True)
     mloss = torch.zeros(1).to(device)  # mean losses
     for i, [images, targets] in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
         images = torch.stack([image.to(device) for image in images])
@@ -34,6 +36,16 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch,
             results = model(images)
 
             losses = mse(results, targets)
+            # assert len(results.shape) == 4, 'logits should be 4-ndim'
+            # bs,num_kps,H,W = results.shape
+            # results = results.view(bs*num_kps,H*W)
+            # keypoint_targets = torch.hstack([t["heatmap"] for t in targets]).to(device)
+            # # kps_weights = torch.hstack([t["kps_weights"] for t in targets]).to(device)
+            # # losses  = F.cross_entropy(results,keypoint_targets,reduction="none")
+            # # losses = torch.mean(losses * kps_weights)
+            # losses  = F.cross_entropy(results,keypoint_targets)
+            
+
 
         # reduce losses over all GPUs for logging purpose
         loss_dict_reduced = utils.reduce_dict({"losses": losses})

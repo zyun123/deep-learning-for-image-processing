@@ -2,7 +2,7 @@ import os
 from PIL import Image
 import numpy as np
 from torch.utils.data import Dataset
-
+import cv2
 
 class DriveDataset(Dataset):
     def __init__(self, root: str, train: bool, transforms=None):
@@ -34,6 +34,10 @@ class DriveDataset(Dataset):
         roi_mask = Image.open(self.roi_mask[idx]).convert('L')
         roi_mask = 255 - np.array(roi_mask)
         mask = np.clip(manual + roi_mask, a_min=0, a_max=255)
+        # show_mask= np.expand_dims(mask,axis = 2)
+        # cv2.imshow("mask",show_mask)
+        # cv2.waitKey(0)
+
 
         # 这里转回PIL的原因是，transforms中是对PIL数据进行处理
         mask = Image.fromarray(mask)

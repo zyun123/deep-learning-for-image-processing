@@ -16,23 +16,24 @@ def predict_single_person():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print(f"using device: {device}")
 
-    num_joints = 50 
+    num_joints = 56
     flip_test = False
-    resize_hw = (288,384)
-    # resize_hw = (384,640)
-    # resize_hw = (256, 192)
+    # resize_hw = (288,384)
+    resize_hw = (384,640)
+    # resize_hw = (768,1280)
+    # resize_hw = (192,256)
     # img_path = "./000001.jpg"
     # weights_path = "./pose_hrnet_w32_256x192.pth"
-    weights_path = "/911G/EightModelOutputs/models/hrnet_288_384_02/model-11.pth"
+    weights_path = "/911G/EightModelOutputs/models/hrnet_384_640_use_ce_02/model-49.pth"
     keypoint_json_path = "person_keypoints.json"
     # assert os.path.exists(img_path), f"file: {img_path} does not exist."
     assert os.path.exists(weights_path), f"file: {weights_path} does not exist."
     assert os.path.exists(keypoint_json_path), f"file: {keypoint_json_path} does not exist."
 
     data_transform = transforms.Compose([
-        transforms.AffineTransform(scale=(1.25, 1.25), fixed_size=resize_hw),
+        transforms.AffineTransform(fixed_size=resize_hw),
         transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        transforms.Normalize(mean=[0.596, 0.575, 0.554], std=[0.096,0.118,0.169])
     ])
 
 
@@ -53,9 +54,10 @@ def predict_single_person():
                 'R-pangguang-11', 'R-pangguang-12', 'R-pangguang-13',
                 'R-pangguang-14', 'R-pangguang-15', 'R-pangguang-16', 'R-pangguang-17', 'R-pangguang-18',
                 'R-pangguang-19', 'R-pangguang-20', 'R-pangguang-21', 'R-pangguang-22', 'R-pangguang-23',
-                'R-pangguang-24']
+                'R-pangguang-24','R-pangguang-7','R-pangguang-30','R-pangguang-8',
+                            'L-pangguang-7','L-pangguang-30','L-pangguang-8']
 
-    img_path_list = glob.glob("/911G/data/semi_care_data/middle_down_wai/train/*.jpg")
+    img_path_list = glob.glob("/911G/data/semi_care_data/middle_down_wai/whole/train/*.jpg")
     output_path = "/911G/newimage/output/hrnet_predict"
     if not os.path.exists(output_path):
         os.makedirs(output_path)

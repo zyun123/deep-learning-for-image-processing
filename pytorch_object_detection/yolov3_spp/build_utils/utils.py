@@ -250,7 +250,7 @@ def compute_loss(p, targets, model):  # predictions, targets, model
             if model.nc > 1:  # cls loss (only if multiple classes)
                 t = torch.full_like(ps[:, 5:], cn, device=device)  # targets
                 t[range(nb), tcls[i]] = cp
-                lcls += BCEcls(ps[:, 5:], t)  # BCE
+                lcls += BCEcls(ps[:, 5:], t)  # BCE 二值交叉熵 ps[:,5:].shape == t.shape
 
             # Append targets to text file
             # with open('targets.txt', 'a') as file:
@@ -294,7 +294,7 @@ def build_targets(p, targets, model):
             j = wh_iou(anchors, t[:, 4:6]) > model.hyp['iou_t']  # iou(3,n) = wh_iou(anchors(3,2), gwh(n,2))
             # t.repeat(na, 1, 1): [nt, 6] -> [3, nt, 6]
             # 获取正样本对应的anchor模板与target信息
-            a, t = at[j], t.repeat(na, 1, 1)[j]  # filter
+            a, t = at[j], t.repeat(na, 1, 1)[j]  # filter  过之后的每个target对应一个anchor
 
         # Define
         # long等于to(torch.int64), 数值向下取整
