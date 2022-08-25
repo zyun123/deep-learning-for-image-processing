@@ -48,21 +48,27 @@ def main(args):
 
     fixed_size = args.fixed_size
     heatmap_hw = (args.fixed_size[0] // 4, args.fixed_size[1] // 4)
-    kps_weights = np.array(person_kps_info["kps_weights"],
-                           dtype=np.float32).reshape((args.num_joints,))
+    # kps_weights = np.array(person_kps_info["kps_weights"],
+    #                        dtype=np.float32).reshape((args.num_joints,))
+    kps_weights = np.ones((args.num_joints,), dtype=np.float32)
+    # focus_ids = [0,9,24,25,26,32,40,41,42,48]
+    focus_ids = [0,9,25,26,41,42]
+    kps_weights[focus_ids] *=2
+
     data_transform = {
         "train": transforms.Compose([
-            transforms.HalfBody(0.3, person_kps_info["upper_body_ids"], person_kps_info["lower_body_ids"]),
-            transforms.AffineTransform(scale=(0.65, 1.35), rotation=(-45, 45), fixed_size=fixed_size),
-            transforms.RandomHorizontalFlip(0.5, person_kps_info["flip_pairs"]),
-            transforms.KeypointToHeatMap(heatmap_hw=heatmap_hw, gaussian_sigma=2, keypoints_weights=kps_weights),
+            # transforms.HalfBody(0.3, person_kps_info["upper_body_ids"], person_kps_info["lower_body_ids"]),
+            transforms.AffineTransform(rotation=(-5, 5), fixed_size=fixed_size),
+            # transforms.RandomHorizontalFlip(0.5, person_kps_info["flip_pairs"]),
+            # transforms.KeypointToHeatMap(heatmap_hw=heatmap_hw, gaussian_sigma=2, keypoints_weights=kps_weights),
+            transforms.RcnnKeypointToHeatmap(heatmap_hw=heatmap_hw,keypoints_weights=kps_weights),
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            transforms.Normalize(mean=[0.596, 0.575, 0.554], std=[0.096,0.118,0.169])
         ]),
-        "val": transforms.Compose([
-            transforms.AffineTransform(scale=(1.25, 1.25), fixed_size=fixed_size),
+        "test": transforms.Compose([
+            transforms.AffineTransform(fixed_size=fixed_size),
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            transforms.Normalize(mean=[0.596, 0.575, 0.554], std=[0.096,0.118,0.169])
         ])
     }
 
@@ -86,7 +92,7 @@ def main(args):
 
     # load validation data set
     # coco2017 -> annotations -> person_keypoints_val2017.json
-    val_dataset = CocoKeypoint(data_root, "val", transforms=data_transform["val"], fixed_size=args.fixed_size,
+    val_dataset = CocoKeypoint(data_root, "test", transforms=data_transform["test"], fixed_size=args.fixed_size,
                                det_json_path=args.person_det)
     val_data_set_loader = torch.utils.data.DataLoader(val_dataset,
                                                       batch_size=batch_size,
@@ -140,9 +146,10 @@ def main(args):
         lr_scheduler.step()
 
         # evaluate on the test dataset
+        # coco_info = utils.evaluate(model, val_data_set_loader, device=device,
+        #                            flip=True, flip_pairs=person_kps_info["flip_pairs"])
         coco_info = utils.evaluate(model, val_data_set_loader, device=device,
-                                   flip=True, flip_pairs=person_kps_info["flip_pairs"])
-
+                                   flip=False)
         # write into txt
         with open(results_file, "a") as f:
             # 写入的数据包括coco指标还有loss和learning rate
@@ -150,7 +157,7 @@ def main(args):
             txt = "epoch:{} {}".format(epoch, '  '.join(result_info))
             f.write(txt + "\n")
 
-        val_map.append(coco_info[1])  # @0.5 mAP
+        val_map.append(coco_info[0])  # @0.5:0.95  map
 
         # save weights
         save_files = {
@@ -160,7 +167,10 @@ def main(args):
             'epoch': epoch}
         if args.amp:
             save_files["scaler"] = scaler.state_dict()
-        torch.save(save_files, "./save_weights/model-{}.pth".format(epoch))
+        if epoch == args.epochs-1:
+            torch.save(save_files['model'],os.path.join(args.output_dir,"model-{}.pth".format(epoch)))
+        else:
+            torch.save(save_files, os.path.join(args.output_dir,"model-{}.pth".format(epoch)))
 
     # plot loss and lr curve
     if len(train_loss) != 0 and len(learning_rate) != 0:
@@ -182,30 +192,30 @@ if __name__ == "__main__":
     # 训练设备类型
     parser.add_argument('--device', default='cuda:0', help='device')
     # 训练数据集的根目录(coco2017)
-    parser.add_argument('--data-path', default='/data/coco2017', help='dataset')
+    parser.add_argument('--data-path', default='/911G/data/semi_care_data/middle_down_wai/whole', help='dataset')
     # COCO数据集人体关键点信息
     parser.add_argument('--keypoints-path', default="./person_keypoints.json", type=str,
                         help='person_keypoints.json path')
     # 原项目提供的验证集person检测信息，如果要使用GT信息，直接将该参数置为None，建议设置成None
     parser.add_argument('--person-det', type=str, default=None)
-    parser.add_argument('--fixed-size', default=[256, 192], nargs='+', type=int, help='input size')
+    parser.add_argument('--fixed-size', default=[384,640], nargs='+', type=int, help='input size')
     # keypoints点数
-    parser.add_argument('--num-joints', default=17, type=int, help='num_joints')
+    parser.add_argument('--num-joints', default=56, type=int, help='num_joints')
     # 文件保存地址
-    parser.add_argument('--output-dir', default='./save_weights', help='path where to save')
+    parser.add_argument('--output-dir', default='/911G/EightModelOutputs/models/hrnet_384_640_use_mse_03', help='path where to save')
     # 若需要接着上次训练，则指定上次训练保存权重文件地址
     parser.add_argument('--resume', default='', type=str, help='resume from checkpoint')
     # 指定接着从哪个epoch数开始训练
     parser.add_argument('--start_epoch', default=0, type=int, help='start epoch')
     # 训练的总epoch数
-    parser.add_argument('--epochs', default=210, type=int, metavar='N',
+    parser.add_argument('--epochs', default=50, type=int, metavar='N',
                         help='number of total epochs to run')
     # 针对torch.optim.lr_scheduler.MultiStepLR的参数
-    parser.add_argument('--lr-steps', default=[170, 200], nargs='+', type=int, help='decrease lr every step-size epochs')
+    parser.add_argument('--lr-steps', default=[30, 40], nargs='+', type=int, help='decrease lr every step-size epochs')
     # 针对torch.optim.lr_scheduler.MultiStepLR的参数
     parser.add_argument('--lr-gamma', default=0.1, type=float, help='decrease lr by a factor of lr-gamma')
     # 学习率
-    parser.add_argument('--lr', default=0.001, type=float,
+    parser.add_argument('--lr', default=0.01, type=float,
                         help='initial learning rate, 0.02 is the default value for training '
                              'on 8 gpus and 2 images_per_gpu')
     # AdamW的weight_decay参数
@@ -213,7 +223,7 @@ if __name__ == "__main__":
                         metavar='W', help='weight decay (default: 1e-4)',
                         dest='weight_decay')
     # 训练的batch size
-    parser.add_argument('--batch_size', default=1, type=int, metavar='N',
+    parser.add_argument('--batch_size', default=4, type=int, metavar='N',
                         help='batch size when training.')
     # 是否使用混合精度训练(需要GPU支持混合精度)
     parser.add_argument("--amp", default=False, help="Use torch.cuda.amp for mixed precision training")

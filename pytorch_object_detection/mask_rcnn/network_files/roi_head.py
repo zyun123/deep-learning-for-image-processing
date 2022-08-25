@@ -333,7 +333,7 @@ class RoIHeads(torch.nn.Module):
         proposals = self.add_gt_proposals(proposals, gt_boxes)
 
         # get matching gt indices for each proposal
-        # 为每个proposal匹配对应的gt_box，并划分到正负样本中
+        # 为每个proposal匹配对应的gt_box，并划分到正负样本中  matched_idxs:gt_box 的索引  labels:gtbox对应的标签（-1，0，1）
         matched_idxs, labels = self.assign_targets_to_proposals(proposals, gt_boxes, gt_labels)
         # sample a fixed proportion of positive-negative proposals
         # 按给定数量和比例采样正负样本
@@ -530,9 +530,9 @@ class RoIHeads(torch.nn.Module):
                 mask_proposals = []
                 pos_matched_idxs = []
                 for img_id in range(num_images):
-                    pos = torch.where(labels[img_id] > 0)[0]  # 寻找对应gt类别大于0，即正样本
+                    pos = torch.where(labels[img_id] > 0)[0]  # 寻找对应gt类别大于0，即正样本 的索引 pos
                     mask_proposals.append(proposals[img_id][pos])
-                    pos_matched_idxs.append(matched_idxs[img_id][pos])
+                    pos_matched_idxs.append(matched_idxs[img_id][pos]) #gtbox的索引
             else:
                 pos_matched_idxs = None
 

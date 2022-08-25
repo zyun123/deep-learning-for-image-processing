@@ -16,7 +16,8 @@ from draw_box_utils import draw_objs
 def main():
     img_size = 512  # 必须是32的整数倍 [416, 512, 608]
     cfg = "cfg/my_yolov3.cfg"  # 改成生成的.cfg文件
-    weights = "weights/yolov3spp-voc-512.pt"  # 改成自己训练好的权重文件
+    # weights = "weights/yolov3spp-voc-512.pt"  # 改成自己训练好的权重文件
+    weights = "weights/yolov3spp-16.pt"  # 改成自己训练好的权重文件
     json_path = "./data/pascal_voc_classes.json"  # json标签文件
     img_path = "test.jpg"
     assert os.path.exists(cfg), "cfg file {} dose not exist.".format(cfg)
@@ -83,9 +84,11 @@ def main():
                              scores,
                              category_index=category_index,
                              box_thresh=0.2,
-                             line_thickness=3,
+                             line_thickness=1,
                              font='arial.ttf',
-                             font_size=20)
+                             font_size=5)
+        t4 = time.time()
+        print("predict and draw used time: ****",t4-t1)
         plt.imshow(plot_img)
         plt.show()
         # 保存预测的图片结果

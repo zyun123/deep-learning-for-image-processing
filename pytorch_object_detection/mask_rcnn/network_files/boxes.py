@@ -170,8 +170,8 @@ def box_iou(boxes1, boxes2):
 
     #  When the shapes do not match,
     #  the shape of the returned output tensor follows the broadcasting rules
-    lt = torch.max(boxes1[:, None, :2], boxes2[:, :2])  # left-top [N,M,2]
-    rb = torch.min(boxes1[:, None, 2:], boxes2[:, 2:])  # right-bottom [N,M,2]
+    lt = torch.max(boxes1[:, None, :2], boxes2[:, :2])  # left-top [N,M,2]  每个gtbox 和anchor比较的最大值，左上角坐标
+    rb = torch.min(boxes1[:, None, 2:], boxes2[:, 2:])  # right-bottom [N,M,2]  每个gtbox 和anchor比较的最小值，右下角坐标
 
     wh = (rb - lt).clamp(min=0)  # [N,M,2]
     inter = wh[:, :, 0] * wh[:, :, 1]  # [N,M]

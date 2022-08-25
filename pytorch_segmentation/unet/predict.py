@@ -68,7 +68,7 @@ def main():
         # 将前景对应的像素值改成255(白色)
         prediction[prediction == 1] = 255
         # 将不敢兴趣的区域像素设置成0(黑色)
-        prediction[roi_img == 0] = 0
+        # prediction[roi_img == 0] = 0
         mask = Image.fromarray(prediction)
         mask.save("test_result.png")
 

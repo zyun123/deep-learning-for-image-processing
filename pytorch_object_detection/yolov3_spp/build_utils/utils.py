@@ -250,7 +250,7 @@ def compute_loss(p, targets, model):  # predictions, targets, model
             if model.nc > 1:  # cls loss (only if multiple classes)
                 t = torch.full_like(ps[:, 5:], cn, device=device)  # targets
                 t[range(nb), tcls[i]] = cp
-                lcls += BCEcls(ps[:, 5:], t)  # BCE
+                lcls += BCEcls(ps[:, 5:], t)  # BCE 二值交叉熵 ps[:,5:].shape == t.shape
 
             # Append targets to text file
             # with open('targets.txt', 'a') as file:
@@ -271,7 +271,7 @@ def compute_loss(p, targets, model):  # predictions, targets, model
 
 def build_targets(p, targets, model):
     # Build targets for compute_loss(), input targets(image_idx,class,x,y,w,h)
-    nt = targets.shape[0]
+    nt = targets.shape[0]   #目标个数
     tcls, tbox, indices, anch = [], [], [], []
     gain = torch.ones(6, device=targets.device)  # normalized to gridspace gain
 
@@ -294,7 +294,7 @@ def build_targets(p, targets, model):
             j = wh_iou(anchors, t[:, 4:6]) > model.hyp['iou_t']  # iou(3,n) = wh_iou(anchors(3,2), gwh(n,2))
             # t.repeat(na, 1, 1): [nt, 6] -> [3, nt, 6]
             # 获取正样本对应的anchor模板与target信息
-            a, t = at[j], t.repeat(na, 1, 1)[j]  # filter
+            a, t = at[j], t.repeat(na, 1, 1)[j]  # filter  过之后的每个target对应一个anchor
 
         # Define
         # long等于to(torch.int64), 数值向下取整
@@ -308,7 +308,7 @@ def build_targets(p, targets, model):
         # gain[3]: grid_h, gain[2]: grid_w
         # image_idx, anchor_idx, grid indices(y, x)
         indices.append((b, a, gj.clamp_(0, gain[3]-1), gi.clamp_(0, gain[2]-1)))
-        tbox.append(torch.cat((gxy - gij, gwh), 1))  # gt box相对anchor的x,y偏移量以及w,h
+        tbox.append(torch.cat((gxy - gij, gwh), 1))  # gt box相对anchor中心即（cell左上角）的x,y偏移量以及w,h
         anch.append(anchors[a])  # anchors
         tcls.append(c)  # class
         if c.shape[0]:  # if any targets

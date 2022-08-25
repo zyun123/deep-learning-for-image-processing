@@ -48,6 +48,8 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch,
             sf = img_size / max(imgs.shape[2:])  # scale factor
 
             # 如果图片最大边长不等于img_size, 则缩放图片，并将长和宽调整到32的整数倍
+            #注意!!!!!!!!!!!!：这个地方只对图像进行了缩放到32的整数倍，但是target没处理是因为target已经做了归一化，
+            #box的x和w都除以了图片的宽，target_box的y和h都除以了图片的高
             if sf != 1:
                 # gs: (pixels) grid size
                 ns = [math.ceil(x * sf / gs) * gs for x in imgs.shape[2:]]  # new shape (stretched to 32-multiple)

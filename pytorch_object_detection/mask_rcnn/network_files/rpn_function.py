@@ -69,7 +69,7 @@ class AnchorsGenerator(nn.Module):
         """
         compute anchor sizes
         Arguments:
-            scales: sqrt(anchor_area)
+            scales: sqrt(anchor_area) 面积开根  也就是标准边长
             aspect_ratios: h/w ratios
             dtype: float32
             device: cpu/gpu
@@ -141,7 +141,7 @@ class AnchorsGenerator(nn.Module):
 
             # 计算预测特征矩阵上每个点对应原图上的坐标(anchors模板的坐标偏移量)
             # torch.meshgrid函数分别传入行坐标和列坐标，生成网格行坐标矩阵和网格列坐标矩阵
-            # shape: [grid_height, grid_width]
+            # shape: [grid_height, grid_width]  特征图上每个像素对应原图的位置坐标anchor的中心坐标，后面会进行加减运算 得到左上角和右下角的坐标
             shift_y, shift_x = torch.meshgrid(shifts_y, shifts_x)
             shift_x = shift_x.reshape(-1)
             shift_y = shift_y.reshape(-1)
@@ -287,7 +287,7 @@ def concat_box_prediction_layers(box_cls, box_regression):
     # 遍历每个预测特征层
     for box_cls_per_level, box_regression_per_level in zip(box_cls, box_regression):
         # [batch_size, anchors_num_per_position * classes_num, height, width]
-        # 注意，当计算RPN中的proposal时，classes_num=1,只区分目标和背景
+        # 注意，当计算RPN中的proposal时，c代表class_num，classes_num=1,只区分目标和背景 ， A代表anchor的数量3
         N, AxC, H, W = box_cls_per_level.shape
         # # [batch_size, anchors_num_per_position * 4, height, width]
         Ax4 = box_regression_per_level.shape[1]
@@ -413,14 +413,14 @@ class RegionProposalNetwork(torch.nn.Module):
                 # NB: need to clamp the indices because we can have a single
                 # GT in the image, and matched_idxs can be -2, which goes
                 # out of bounds
-                matched_gt_boxes_per_image = gt_boxes[matched_idxs.clamp(min=0)]
+                matched_gt_boxes_per_image = gt_boxes[matched_idxs.clamp(min=0)]  #将-1，-2 的索引统统变成0，这样可以匹配到gtbox，但是这些gt在后面不会用到
 
-                labels_per_image = matched_idxs >= 0
-                labels_per_image = labels_per_image.to(dtype=torch.float32)
+                labels_per_image = matched_idxs >= 0  #大于等于0的是正样本 索引
+                labels_per_image = labels_per_image.to(dtype=torch.float32) #里面不是0就是1
 
                 # background (negative examples)
-                bg_indices = matched_idxs == self.proposal_matcher.BELOW_LOW_THRESHOLD  # -1
-                labels_per_image[bg_indices] = 0.0
+                bg_indices = matched_idxs == self.proposal_matcher.BELOW_LOW_THRESHOLD  # -1 #等于-1的是背景
+                labels_per_image[bg_indices] = 0.0   #负样本 将-1变成0
 
                 # discard indices that are between thresholds
                 inds_to_discard = matched_idxs == self.proposal_matcher.BETWEEN_THRESHOLDS  # -2
@@ -451,7 +451,7 @@ class RegionProposalNetwork(torch.nn.Module):
                 pre_nms_top_n = min(self.pre_nms_top_n(), num_anchors)
 
             # Returns the k largest elements of the given input tensor along a given dimension
-            _, top_n_idx = ob.topk(pre_nms_top_n, dim=1)
+            _, top_n_idx = ob.topk(pre_nms_top_n, dim=1) #排名前2000的索引
             r.append(top_n_idx + offset)
             offset += num_anchors
         return torch.cat(r, dim=1)
@@ -483,7 +483,7 @@ class RegionProposalNetwork(torch.nn.Module):
         levels = torch.cat(levels, 0)
 
         # Expand this tensor to the same size as objectness
-        levels = levels.reshape(1, -1).expand_as(objectness)
+        levels = levels.reshape(1, -1).expand_as(objectness)   ##扩展复制一份
 
         # select top_n boxes independently per level before applying nms
         # 获取每张预测特征图上预测概率排前pre_nms_top_n的anchors索引值
@@ -610,7 +610,7 @@ class RegionProposalNetwork(torch.nn.Module):
         # numel() Returns the total number of elements in the input tensor.
         # 计算每个预测特征层上的对应的anchors数量
         num_anchors_per_level_shape_tensors = [o[0].shape for o in objectness]
-        num_anchors_per_level = [s[0] * s[1] * s[2] for s in num_anchors_per_level_shape_tensors]
+        num_anchors_per_level = [s[0] * s[1] * s[2] for s in num_anchors_per_level_shape_tensors] #为了好区分到哪个特征层了(p0~p4)
 
         # 调整内部tensor格式以及shape
         objectness, pred_bbox_deltas = concat_box_prediction_layers(objectness,

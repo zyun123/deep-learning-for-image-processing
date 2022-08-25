@@ -93,7 +93,8 @@ python train.py --data-path /data/coco2017
 ```
 2. 训练过程中保存的`key_results.txt`是每个epoch在验证集上的COCO指标，前10个值是COCO指标，后面两个值是训练平均损失以及学习率
 3. 在使用预测脚本时，如果要读取自己训练好的权重要将`weights_path`设置为你自己生成的权重路径。
-
+4. 在训练自己的coco数据集的时候，由于自己的人体关键点不是17个点，所以在1个epoch训练完之后，会验证，这时候会报错，50个点与17个点不匹配，因为要用到oks，所以需要设置oks的个数，这时候需要在coco_eval.py中，123行加上
+self.coco_evaluator.params.kpt_oks_sigmas = np.ones(coco_true.anns[1]["num_keypoints"],dtype=np.float)*0.01
 
 ## 如果对HRNet网络不是很理解可参考我的bilibili
 https://www.bilibili.com/video/BV1bB4y1y7qP

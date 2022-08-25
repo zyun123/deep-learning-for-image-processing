@@ -64,13 +64,13 @@ class BalancedPositiveNegativeSampler(object):
             perm1 = torch.randperm(positive.numel(), device=positive.device)[:num_pos]
             perm2 = torch.randperm(negative.numel(), device=negative.device)[:num_neg]
 
-            pos_idx_per_image = positive[perm1]
+            pos_idx_per_image = positive[perm1]  #这里的positive里面存的都是对应的gtbox 类别索引
             neg_idx_per_image = negative[perm2]
 
             # create binary mask from indices
             pos_idx_per_image_mask = torch.zeros_like(
                 matched_idxs_per_image, dtype=torch.uint8
-            )
+            )  #将正负样本的位置的值置为1，其余为0，后期要取样本，通过值为1，即可得到1对应的索引，进而得到对应的anchor
             neg_idx_per_image_mask = torch.zeros_like(
                 matched_idxs_per_image, dtype=torch.uint8
             )
@@ -328,7 +328,7 @@ class Matcher(object):
         # matched_vals代表每列的最大值，即每个anchors与所有gt匹配的最大iou值
         # matches对应最大值所在的索引
         matched_vals, matches = match_quality_matrix.max(dim=0)  # the dimension to reduce.
-        if self.allow_low_quality_matches:
+        if self.allow_low_quality_matches:  #是否将iou小于阈值被归为负样本的，但是是最大值的放到正样本里
             all_matches = matches.clone()
         else:
             all_matches = None
@@ -372,8 +372,8 @@ class Matcher(object):
         # )
         gt_pred_pairs_of_highest_quality = torch.where(
             torch.eq(match_quality_matrix, highest_quality_foreach_gt[:, None])
-        )
-        # Example gt_pred_pairs_of_highest_quality:
+        )#得到行索引和列索引
+        # Example gt_pred_pairs_of_highest_quality: 
         #   tensor([[    0, 39796],
         #           [    1, 32055],
         #           [    1, 32070],

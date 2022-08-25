@@ -66,24 +66,24 @@ def get_final_preds(batch_heatmaps: torch.Tensor,
     assert trans is not None
     coords, maxvals = get_max_preds(batch_heatmaps)
 
-    heatmap_height = batch_heatmaps.shape[2]
-    heatmap_width = batch_heatmaps.shape[3]
+    # heatmap_height = batch_heatmaps.shape[2]
+    # heatmap_width = batch_heatmaps.shape[3]
 
-    # post-processing
-    if post_processing:
-        for n in range(coords.shape[0]):
-            for p in range(coords.shape[1]):
-                hm = batch_heatmaps[n][p]
-                px = int(math.floor(coords[n][p][0] + 0.5))
-                py = int(math.floor(coords[n][p][1] + 0.5))
-                if 1 < px < heatmap_width - 1 and 1 < py < heatmap_height - 1:
-                    diff = torch.tensor(
-                        [
-                            hm[py][px + 1] - hm[py][px - 1],
-                            hm[py + 1][px] - hm[py - 1][px]
-                        ]
-                    ).to(batch_heatmaps.device)
-                    coords[n][p] += torch.sign(diff) * .25
+    # # post-processing
+    # if post_processing:
+    #     for n in range(coords.shape[0]):
+    #         for p in range(coords.shape[1]):
+    #             hm = batch_heatmaps[n][p]
+    #             px = int(math.floor(coords[n][p][0] + 0.5))
+    #             py = int(math.floor(coords[n][p][1] + 0.5))
+    #             if 1 < px < heatmap_width - 1 and 1 < py < heatmap_height - 1:
+    #                 diff = torch.tensor(
+    #                     [
+    #                         hm[py][px + 1] - hm[py][px - 1],
+    #                         hm[py + 1][px] - hm[py - 1][px]
+    #                     ]
+    #                 ).to(batch_heatmaps.device)
+    #                 coords[n][p] += torch.sign(diff) * .25
 
     preds = coords.clone().cpu().numpy()
 
@@ -164,13 +164,13 @@ def adjust_box(xmin: float, ymin: float, w: float, h: float, fixed_size: Tuple[f
         # 需要在w方向padding
         wi = h / hw_ratio
         pad_w = (wi - w) / 2
-        xmin = xmin - pad_w
+        xmin = xmin + pad_w
         xmax = xmax + pad_w
     else:
         # 需要在h方向padding
         hi = w * hw_ratio
         pad_h = (hi - h) / 2
-        ymin = ymin - pad_h
+        ymin = ymin + pad_h
         ymax = ymax + pad_h
 
     return xmin, ymin, xmax, ymax
@@ -285,13 +285,13 @@ class AffineTransform(object):
         src_xmin, src_ymin, src_xmax, src_ymax = adjust_box(*target["box"], self.fixed_size)
         src_w = src_xmax - src_xmin
         src_h = src_ymax - src_ymin
-        src_center = np.array([(src_xmin + src_xmax) / 2, (src_ymin + src_ymax) / 2])
-        src_p2 = src_center + np.array([0, -src_h / 2])  # top middle
-        src_p3 = src_center + np.array([src_w / 2, 0])   # right middle
+        src_center = np.array([(src_xmin + src_xmax) / 2, (src_ymin + src_ymax) / 2]) #目标中心
+        src_p2 = src_center + np.array([0, -src_h / 2])  # top middle 中心对应框 上沿中心坐标
+        src_p3 = src_center + np.array([src_w / 2, 0])   # right middle 中心 对应框 右沿中心坐标
 
-        dst_center = np.array([(self.fixed_size[1] - 1) / 2, (self.fixed_size[0] - 1) / 2])
+        dst_center = np.array([(self.fixed_size[1] - 1) / 2, (self.fixed_size[0] - 1) / 2]) #288x384 中心坐标
         dst_p2 = np.array([(self.fixed_size[1] - 1) / 2, 0])  # top middle
-        dst_p3 = np.array([self.fixed_size[1] - 1, (self.fixed_size[0] - 1) / 2])  # right middle
+        dst_p3 = np.array([self.fixed_size[1] - 1, (self.fixed_size[0] - 1) / 2])  # right middle 288x384 右沿中心坐标
 
         if self.scale is not None:
             scale = random.uniform(*self.scale)
@@ -318,7 +318,10 @@ class AffineTransform(object):
                                     trans,
                                     tuple(self.fixed_size[::-1]),  # [w, h]
                                     flags=cv2.INTER_LINEAR)
-
+        # resize_img = cv2.warpAffine(img,
+        #                             trans,
+        #                             (500,500),
+        #                             flags=cv2.INTER_LINEAR)
         if "keypoints" in target:
             kps = target["keypoints"]
             mask = np.logical_and(kps[:, 0] != 0, kps[:, 1] != 0)
@@ -441,3 +444,53 @@ class KeypointToHeatMap(object):
         target["kps_weights"] = torch.as_tensor(kps_weights, dtype=torch.float32)
 
         return image, target
+
+class RcnnKeypointToHeatmap(object):
+    def __init__(self,heatmap_hw: Tuple[int, int] = (256 // 4, 192 // 4),keypoints_weights=None):
+        self.heatmap_hw = heatmap_hw
+        self.scale = 1/4
+        self.kps_weights = keypoints_weights
+        
+
+    def __call__(self,image,target):
+        kps = target["keypoints"]
+        num_kps = kps.shape[0]
+        kps_weights = np.ones((num_kps,), dtype=np.float32)
+        # if "visible" in target:
+        #     visible = target["visible"]
+        #     kps_weights = visible
+        kps_weights = np.multiply(kps_weights, self.kps_weights)
+
+
+        x = kps[...,0] * self.scale
+        y = kps[...,1] * self.scale
+        # x = x.floor().long()
+        # y = y.floor().long()
+        x = np.floor(x)
+        y = np.floor(y)
+        heatmap = y * self.heatmap_hw[1] +x
+
+        target["heatmap"] = torch.as_tensor(heatmap,dtype = torch.int64)
+        target["kps_weights"] = torch.as_tensor(kps_weights, dtype=torch.float32)
+        
+
+        return image, target
+
+
+
+
+
+
+
+if __name__ == "__main__":
+    img_path = "/911G/data/semi_care_data/middle_down_wai/whole/train/000002.jpg"
+    img = cv2.imread(img_path)
+    # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    a = AffineTransform(fixed_size=(768,1280))
+    # img_tensor, target = a(img, {"box": [131.12, 47.54,961.19, 561.56]})
+    img_tensor, target = a(img, {"box": [0, 0,1279, 719]})
+    print(img_tensor.shape)
+    cv2.imshow("resize_img",img_tensor)
+
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
