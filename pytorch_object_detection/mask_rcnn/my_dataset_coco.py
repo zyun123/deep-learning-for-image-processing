@@ -67,7 +67,7 @@ class CocoDetection(data.Dataset):
         assert w > 0
         assert h > 0
 
-        # 只筛选出单个对象的情况
+        # 只筛选出单个对象的情况  
         anno = [obj for obj in coco_targets if obj['iscrowd'] == 0]
 
         boxes = [obj["bbox"] for obj in anno]
@@ -78,7 +78,7 @@ class CocoDetection(data.Dataset):
         boxes[:, 2:] += boxes[:, :2]
         boxes[:, 0::2].clamp_(min=0, max=w)
         boxes[:, 1::2].clamp_(min=0, max=h)
-
+        #anno里的category_id是类别id(0~90)
         classes = [obj["category_id"] for obj in anno]
         classes = torch.tensor(classes, dtype=torch.int64)
 

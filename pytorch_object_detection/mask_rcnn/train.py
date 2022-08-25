@@ -20,7 +20,7 @@ def create_model(num_classes, load_pretrain_weights=True):
     # backbone = resnet50_fpn_backbone(norm_layer=FrozenBatchNorm2d,
     #                                  trainable_layers=3)
     # resnet50 imagenet weights url: https://download.pytorch.org/models/resnet50-0676ba61.pth
-    backbone = resnet50_fpn_backbone(pretrain_path="resnet50.pth", trainable_layers=3)
+    backbone = resnet50_fpn_backbone(pretrain_path="resnet50.pth",norm_layer=FrozenBatchNorm2d, trainable_layers=3)
 
     model = MaskRCNN(backbone, num_classes=num_classes)
 
@@ -194,7 +194,7 @@ if __name__ == "__main__":
     # 训练设备类型
     parser.add_argument('--device', default='cuda:0', help='device')
     # 训练数据集的根目录
-    parser.add_argument('--data-path', default='/data/coco2017', help='dataset')
+    parser.add_argument('--data-path', default='E:\data\coco', help='dataset')
     # 检测目标类别数(不包含背景)
     parser.add_argument('--num-classes', default=90, type=int, help='num_classes')
     # 文件保存地址
@@ -204,7 +204,7 @@ if __name__ == "__main__":
     # 指定接着从哪个epoch数开始训练
     parser.add_argument('--start_epoch', default=0, type=int, help='start epoch')
     # 训练的总epoch数
-    parser.add_argument('--epochs', default=26, type=int, metavar='N',
+    parser.add_argument('--epochs', default=10, type=int, metavar='N',
                         help='number of total epochs to run')
     # 学习率
     parser.add_argument('--lr', default=0.004, type=float,
