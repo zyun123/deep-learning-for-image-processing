@@ -52,7 +52,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                  # 这里设置的是预处理后输出的图片尺寸
                  # 当为训练集时，设置的是训练过程中(开启多尺度)的最大尺寸
                  # 当为验证集时，设置的是最终使用的网络大小
-                 img_size=416,
+                 img_size=[736,1280],
                  batch_size=16,
                  augment=False,  # 训练集设置为True(augment_hsv)，验证集设置为False
                  hyp=None,  # 超参数字典，其中包含图像增强会使用到的超参数
@@ -94,7 +94,8 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
         self.hyp = hyp  # 超参数字典，其中包含图像增强会使用到的超参数
         self.rect = rect  # 是否使用rectangular training
         # 注意: 开启rect后，mosaic就默认关闭
-        self.mosaic = self.augment and not self.rect  # load 4 images at a time into a mosaic (only during training)
+        # self.mosaic = self.augment and not self.rect  # load 4 images at a time into a mosaic (only during training)
+        self.mosaic = False
 
         # Define labels
         # 遍历设置图像对应的label路径
@@ -119,7 +120,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                 image_files = tqdm(self.img_files, desc="Reading image shapes")
             else:
                 image_files = self.img_files
-            s = [exif_size(Image.open(f)) for f in image_files]
+            s = [exif_size(Image.open(f)) for f in image_files]  #存宽高(w,h)
             # 将所有图片的shape信息保存在.shape文件中
             np.savetxt(sp, s, fmt="%g")  # overwrite existing (if any)
 
@@ -205,9 +206,13 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
             # 如果标注信息不为空的话
             if l.shape[0]:
                 # 标签信息每行必须是五个值[class, x, y, w, h]
-                assert l.shape[1] == 5, "> 5 label columns: %s" % file
+                # assert l.shape[1] == 5, "> 5 label columns: %s" % file
+                assert l.shape[1] == 173, "> 5 label columns: %s" % file
                 assert (l >= 0).all(), "negative labels: %s" % file  #全部大于等于0
-                assert (l[:, 1:] <= 1).all(), "non-normalized or out of bounds coordinate labels: %s" % file
+
+                #注意！！！这里说明yolo格式的标注文件里box的（x,y,w,h）已经是归一化后的数值了
+                assert (l[:, 1:5] <= 1).all(), "non-normalized or out of bounds coordinate labels: %s" % file  
+                assert (l[:, 7::3] ==2).all(), "keypoint value must be 2: %s" % file  
 
                 # 检查每一行，看是否有重复信息
                 if np.unique(l, axis=0).shape[0] < l.shape[0]:  # duplicate rows
@@ -287,6 +292,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
 
     def __getitem__(self, index):
         hyp = self.hyp
+        shapes = None 
         if self.mosaic:
             # load mosaic
             img, labels = load_mosaic(self, index)
@@ -296,9 +302,9 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
             img, (h0, w0), (h, w) = load_image(self, index)
 
             # letterbox
-            shape = self.batch_shapes[self.batch[index]] if self.rect else self.img_size  # final letterboxed shape
-            img, ratio, pad = letterbox(img, shape, auto=False, scale_up=self.augment)
-            shapes = (h0, w0), ((h / h0, w / w0), pad)  # for COCO mAP rescaling
+            # shape = self.batch_shapes[self.batch[index]] if self.rect else self.img_size  # final letterboxed shape
+            # img, ratio, pad = letterbox(img, shape, auto=False, scale_up=self.augment)
+            # shapes = (h0, w0), ((h / h0, w / w0), pad)  # for COCO mAP rescaling
 
             # load labels
             labels = []
@@ -306,19 +312,21 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
             if x.size > 0:
                 # Normalized xywh to pixel xyxy format
                 labels = x.copy()  # label: class, x, y, w, h
-                labels[:, 1] = ratio[0] * w * (x[:, 1] - x[:, 3] / 2) + pad[0]  # pad width
-                labels[:, 2] = ratio[1] * h * (x[:, 2] - x[:, 4] / 2) + pad[1]  # pad height
-                labels[:, 3] = ratio[0] * w * (x[:, 1] + x[:, 3] / 2) + pad[0]
-                labels[:, 4] = ratio[1] * h * (x[:, 2] + x[:, 4] / 2) + pad[1]
+                labels[:, 1] = w * (x[:, 1] - x[:, 3] / 2) # pad width
+                labels[:, 2] = h * (x[:, 2] - x[:, 4] / 2) # pad height
+                labels[:, 3] = w * (x[:, 1] + x[:, 3] / 2)
+                labels[:, 4] = h * (x[:, 2] + x[:, 4] / 2)
+                labels[:,5::3] = w * x[:,5::3]
+                labels[:,6::3] = h * x[:,6::3]
 
         if self.augment:
             # Augment imagespace
-            if not self.mosaic:
-                img, labels = random_affine(img, labels,
-                                            degrees=hyp["degrees"],
-                                            translate=hyp["translate"],
-                                            scale=hyp["scale"],
-                                            shear=hyp["shear"])
+            # if not self.mosaic:
+            #     img, labels = random_affine(img, labels,
+            #                                 degrees=hyp["degrees"],
+            #                                 translate=hyp["translate"],
+            #                                 scale=hyp["scale"],
+            #                                 shear=hyp["shear"])
 
             # Augment colorspace
             augment_hsv(img, h_gain=hyp["hsv_h"], s_gain=hyp["hsv_s"], v_gain=hyp["hsv_v"])
@@ -334,20 +342,21 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
 
         if self.augment:
             # random left-right flip
-            lr_flip = True  # 随机水平翻转
+            lr_flip = False  # 随机水平翻转
             if lr_flip and random.random() < 0.5:
                 img = np.fliplr(img)
                 if nL:
                     labels[:, 1] = 1 - labels[:, 1]  # 1 - x_center
 
             # random up-down flip
-            ud_flip = False
+            ud_flip = True
             if ud_flip and random.random() < 0.5:
                 img = np.flipud(img)
                 if nL:
                     labels[:, 2] = 1 - labels[:, 2]  # 1 - y_center
+                    labels[:, 6::3] = 1 - labels[:, 6::3]  # 1 - y_kp
 
-        labels_out = torch.zeros((nL, 6))  # nL: number of labels
+        labels_out = torch.zeros((nL, 174))  # nL: number of labels
         if nL:
             labels_out[:, 1:] = torch.from_numpy(labels)
 
@@ -383,10 +392,13 @@ def load_image(self, index):
         assert img is not None, "Image Not Found " + path
         h0, w0 = img.shape[:2]  # orig hw
         # img_size 设置的是预处理后输出的图片尺寸
-        r = self.img_size / max(h0, w0)  # resize image to img_size
-        if r != 1:  # if sizes are not equal
-            interp = cv2.INTER_AREA if r < 1 and not self.augment else cv2.INTER_LINEAR
-            img = cv2.resize(img, (int(w0 * r), int(h0 * r)), interpolation=interp)
+        # r = self.img_size / max(h0, w0)  # resize image to img_size
+        resize_hw = self.img_size
+        img = cv2.resize(img, (resize_hw[1],resize_hw[0]), interpolation=cv2.INTER_LINEAR)
+        # if r != 1:  # if sizes are not equal
+        #     interp = cv2.INTER_AREA if r < 1 and not self.augment else cv2.INTER_LINEAR
+        #     # img = cv2.resize(img, (int(w0 * r), int(h0 * r)), interpolation=interp)
+        #     img = cv2.resize(img, (int(w0 * r), int(h0 * r)), interpolation=interp)
         return img, (h0, w0), img.shape[:2]  # img, hw_original, hw_resized
     else:
         return self.imgs[index], self.img_hw0[index], self.img_hw[index]  # img, hw_original, hw_resized

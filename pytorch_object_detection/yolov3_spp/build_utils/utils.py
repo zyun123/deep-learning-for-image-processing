@@ -210,7 +210,7 @@ def compute_loss(p, targets, model):  # predictions, targets, model
     lcls = torch.zeros(1, device=device)  # Tensor(0)
     lbox = torch.zeros(1, device=device)  # Tensor(0)
     lobj = torch.zeros(1, device=device)  # Tensor(0)
-    tcls, tbox, indices, anchors = build_targets(p, targets, model)  # targets
+    tcls, tbox, indices, anchors,tkeypoints = build_targets(p, targets, model)  # targets
     h = model.hyp  # hyperparameters
     red = 'mean'  # Loss reduction (sum or mean)
 
@@ -272,8 +272,8 @@ def compute_loss(p, targets, model):  # predictions, targets, model
 def build_targets(p, targets, model):
     # Build targets for compute_loss(), input targets(image_idx,class,x,y,w,h)
     nt = targets.shape[0]   #目标个数
-    tcls, tbox, indices, anch = [], [], [], []
-    gain = torch.ones(6, device=targets.device)  # normalized to gridspace gain
+    tcls, tbox,tkeypoints indices, anch = [], [], [], [],[]
+    gain = torch.ones(174, device=targets.device)  # normalized to gridspace gain
 
     multi_gpu = type(model) in (nn.parallel.DataParallel, nn.parallel.DistributedDataParallel)
     for i, j in enumerate(model.yolo_layers):  # j: [89, 101, 113]
@@ -281,7 +281,10 @@ def build_targets(p, targets, model):
         # 注意anchor_vec是anchors缩放到对应特征层上的尺度
         anchors = model.module.module_list[j].anchor_vec if multi_gpu else model.module_list[j].anchor_vec
         # p[i].shape: [batch_size, 3, grid_h, grid_w, num_params]
-        gain[2:] = torch.tensor(p[i].shape)[[3, 2, 3, 2]]  # xyxy gain
+        # gain[2:] = torch.tensor(p[i].shape)[[3, 2, 3, 2]]  # xyxy gain
+        gain[2:6] *= torch.tensor(p[i].shape,device = targets.device)[[3, 2, 3, 2]]
+        gain[6::3] *= torch.tensor(p[i].shape,device = targets.device)[[3]]
+        gain[7::3] *= torch.tensor(p[i].shape,device = targets.device)[[2]]
         na = anchors.shape[0]  # number of anchors
         # [3] -> [3, 1] -> [3, nt]
         at = torch.arange(na).view(na, 1).repeat(1, nt)  # anchor tensor, same as .repeat_interleave(nt)
@@ -304,6 +307,9 @@ def build_targets(p, targets, model):
         gij = (gxy - offsets).long()  # 匹配targets所在的grid cell左上角坐标
         gi, gj = gij.T  # grid xy indices
 
+        #keypoints
+        tkeypoints.append(t[:,6:])
+
         # Append
         # gain[3]: grid_h, gain[2]: grid_w
         # image_idx, anchor_idx, grid indices(y, x)
@@ -317,7 +323,7 @@ def build_targets(p, targets, model):
                                        'See https://github.com/ultralytics/yolov3/wiki/Train-Custom-Data' % (
                                            model.nc, model.nc - 1, c.max())
 
-    return tcls, tbox, indices, anch
+    return tcls, tbox, indices, anch,tkeypoints
 
 
 def non_max_suppression(prediction, conf_thres=0.1, iou_thres=0.6,

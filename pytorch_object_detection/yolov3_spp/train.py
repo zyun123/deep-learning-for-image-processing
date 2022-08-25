@@ -31,11 +31,13 @@ def train(hyp):
     imgsz_test = opt.img_size  # test image sizes
     multi_scale = opt.multi_scale
 
+
     # Image sizes
     # 图像要设置成32的倍数
     gs = 32  # (pixels) grid size
-    assert math.fmod(imgsz_test, gs) == 0, "--img-size %g must be a %g-multiple" % (imgsz_test, gs)
-    grid_min, grid_max = imgsz_test // gs, imgsz_test // gs
+    assert math.fmod(imgsz_test[0], gs) == 0, "--img-size %g must be a %g-multiple" % (imgsz_test[0], gs)
+    assert math.fmod(imgsz_test[1], gs) == 0, "--img-size %g must be a %g-multiple" % (imgsz_test[1], gs)
+    grid_min, grid_max = imgsz_test[0] // gs, imgsz_test[1] // gs
     if multi_scale:
         imgsz_min = opt.img_size // 1.5
         imgsz_max = opt.img_size // 0.667
@@ -51,9 +53,16 @@ def train(hyp):
     data_dict = parse_data_cfg(data)
     train_path = data_dict["train"]
     test_path = data_dict["valid"]
-    nc = 1 if opt.single_cls else int(data_dict["classes"])  # number of classes
+
+    ##多类别
+    # nc = 1 if opt.single_cls else int(data_dict["classes"])  # number of classes
+
+    #只有1个类别
+    opt.single_cls = True
+    nc = 1 #只有1个类别
+    
     hyp["cls"] *= nc / 80  # update coco-tuned hyp['cls'] to current dataset
-    hyp["obj"] *= imgsz_test / 320
+    hyp["obj"] *= max(imgsz_test) / 320
 
     # Remove previous results
     for f in glob.glob(results_file):
@@ -82,9 +91,9 @@ def train(hyp):
         darknet_end_layer = 74  # only yolov3spp cfg
         # Freeze darknet53 layers
         # 总共训练21x3+3x2=69个parameters
-        for idx in range(darknet_end_layer + 1):  # [0, 74]
-            for parameter in model.module_list[idx].parameters():
-                parameter.requires_grad_(False)
+        # for idx in range(darknet_end_layer + 1):  # [0, 74]
+        #     for parameter in model.module_list[idx].parameters():
+        #         parameter.requires_grad_(False)
 
     # optimizer
     pg = [p for p in model.parameters() if p.requires_grad]
@@ -100,6 +109,7 @@ def train(hyp):
 
         # load model
         try:
+            model_dict = {k: v for k, v in ckpt["model"].items() if model.state_dict()[k].numel() == v.numel()}
             ckpt["model"] = {k: v for k, v in ckpt["model"].items() if model.state_dict()[k].numel() == v.numel()}
             model.load_state_dict(ckpt["model"], strict=False)
         except KeyError as e:
@@ -160,7 +170,7 @@ def train(hyp):
     # 验证集的图像尺寸指定为img_size(512)
     val_dataset = LoadImagesAndLabels(test_path, imgsz_test, batch_size,
                                       hyp=hyp,
-                                      rect=True,  # 将每个batch的图像调整到合适大小，可减少运算量(并不是512x512标准尺寸)
+                                      rect=opt.rect,  # 将每个batch的图像调整到合适大小，可减少运算量(并不是512x512标准尺寸)
                                       cache_images=opt.cache_images,
                                       single_cls=opt.single_cls)
 
@@ -271,14 +281,19 @@ if __name__ == '__main__':
     parser.add_argument('--cfg', type=str, default='cfg/my_yolov3.cfg', help="*.cfg path")
     parser.add_argument('--data', type=str, default='data/my_data.data', help='*.data path')
     parser.add_argument('--hyp', type=str, default='cfg/hyp.yaml', help='hyperparameters path')
-    parser.add_argument('--multi-scale', type=bool, default=True,
+    parser.add_argument('--multi-scale', type=bool, default=False,
                         help='adjust (67%% - 150%%) img_size every 10 batches')
-    parser.add_argument('--img-size', type=int, default=512, help='test size')
+    #指定输入图像尺寸
+    parser.add_argument('--img-size', type=tuple, default=(736,1280), help='test size')
+
     parser.add_argument('--rect', action='store_true', help='rectangular training')
+    # parser.add_argument('--rect', default=True, help='rectangular training')
     parser.add_argument('--savebest', type=bool, default=False, help='only save best checkpoint')
     parser.add_argument('--notest', action='store_true', help='only test final epoch')
     parser.add_argument('--cache-images', action='store_true', help='cache images for faster training')
-    parser.add_argument('--weights', type=str, default='weights/yolov3-spp-ultralytics-512.pt',
+    # parser.add_argument('--weights', type=str, default='weights/yolov3-spp-ultralytics-512.pt',
+    #                     help='initial weights path')
+    parser.add_argument('--weights', type=str, default='',
                         help='initial weights path')
     parser.add_argument('--name', default='', help='renames results.txt to results_name.txt if supplied')
     parser.add_argument('--device', default='cuda:0', help='device id (i.e. 0 or 0,1 or cpu)')
