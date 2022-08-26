@@ -6,9 +6,9 @@ import os
 
 def arg_parser():
     parser = argparse.ArgumentParser('code by rbj')
-    parser.add_argument('--annotation_path', type=str,default='/911G/data/semi_care_data/middle_down_wai/whole/test.json')
+    parser.add_argument('--annotation_path', type=str,default='/911G/data/semi_care_data/middle_down_wai/whole/train.json')
     #生成的txt文件保存的目录
-    parser.add_argument('--save_base_path', type=str, default='/911G/data/semi_care_data/middle_down_wai/coco_yolo_dataset/test/labels')
+    parser.add_argument('--save_base_path', type=str, default='/911G/data/semi_care_data/middle_down_wai/coco_yolo_dataset/train/labels')
     args = parser.parse_args(args=[])
     #原网页中是args = parser.parse_args()会报错，改成这个以后解决了
     return args
@@ -70,9 +70,9 @@ if __name__ == '__main__':
                     keypoints = annotation['keypoints']
                 for i,kp in enumerate(keypoints):
                     if i %3 ==0:
-                        lines += ' ' + str(round(kp/width,3))
+                        lines += ' ' + str(round(kp/width,6))
                     elif i%3 == 1:
-                        lines += ' ' + str(round(kp/height,3))
+                        lines += ' ' + str(round(kp/height,6))
                     else:
                         lines += ' ' + str(kp)
 

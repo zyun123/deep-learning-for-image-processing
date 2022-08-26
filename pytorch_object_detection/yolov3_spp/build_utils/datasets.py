@@ -339,6 +339,8 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
             # Normalize coordinates 0-1
             labels[:, [2, 4]] /= img.shape[0]  # height
             labels[:, [1, 3]] /= img.shape[1]  # width
+            labels[:,5::3] /= img.shape[1]  # width
+            labels[:,6::3] /= img.shape[0]  # height
 
         if self.augment:
             # random left-right flip

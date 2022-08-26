@@ -122,7 +122,7 @@ class YOLOLayer(nn.Module):
         self.stride = stride  # layer stride 特征图上一步对应原图上的步距 [32, 16, 8]
         self.na = len(anchors)  # number of anchors (3)
         self.nc = nc  # number of classes (80)
-        self.no = nc + 5  # number of outputs (85: x, y, w, h, obj, cls1, ...)
+        self.no = nc + 5 +56  # number of outputs (85: x, y, w, h, obj, cls1, ...)
         self.nx, self.ny, self.ng = 0, 0, (0, 0)  # initialize number of x, y gridpoints
         # 将anchors大小缩放到grid尺度
         self.anchor_vec = self.anchors / self.stride

@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 import torchvision
 from tqdm import tqdm
-
+import torch.nn.functional as F
 from build_utils import torch_utils  # , google_utils
 
 # Set printoptions
@@ -210,6 +210,7 @@ def compute_loss(p, targets, model):  # predictions, targets, model
     lcls = torch.zeros(1, device=device)  # Tensor(0)
     lbox = torch.zeros(1, device=device)  # Tensor(0)
     lobj = torch.zeros(1, device=device)  # Tensor(0)
+    keypoint_loss = torch.zeros(1, device=device)  # Tensor(0)
     tcls, tbox, indices, anchors,tkeypoints = build_targets(p, targets, model)  # targets
     h = model.hyp  # hyperparameters
     red = 'mean'  # Loss reduction (sum or mean)
@@ -235,28 +236,50 @@ def compute_loss(p, targets, model):  # predictions, targets, model
         if nb:
             # 对应匹配到正样本的预测信息
             ps = pi[b, a, gj, gi]  # prediction subset corresponding to targets
+            N,A,H,W,_= pi.shape
 
             # GIoU
             pxy = ps[:, :2].sigmoid()
             pwh = ps[:, 2:4].exp().clamp(max=1E3) * anchors[i]
             pbox = torch.cat((pxy, pwh), 1)  # predicted box
+            
             giou = bbox_iou(pbox.t(), tbox[i], x1y1x2y2=False, GIoU=True)  # giou(prediction, target)
             lbox += (1.0 - giou).mean()  # giou loss
 
             # Obj
             tobj[b, a, gj, gi] = (1.0 - model.gr) + model.gr * giou.detach().clamp(0).type(tobj.dtype)  # giou ratio
 
+
+
             # Class
             if model.nc > 1:  # cls loss (only if multiple classes)
                 t = torch.full_like(ps[:, 5:], cn, device=device)  # targets
                 t[range(nb), tcls[i]] = cp
                 lcls += BCEcls(ps[:, 5:], t)  # BCE 二值交叉熵 ps[:,5:].shape == t.shape
+            pxyxys = []
+            pbox_xyxy = torch.zeros_like(pbox)
+            pbox_xyxy[:,:2] = pbox[:,:2]+torch.vstack((gi,gj)).T
+            pbox_xyxy[:,2:] += pbox[:,2:]
+            pbox_xyxy = xywh2xyxy(pbox_xyxy)
+            pxyxys.append(pbox_xyxy)
+
+            for box,gt_kp in zip(pxyxys,tkeypoints):
+                heatmaps,valid = keypoints_to_heatmap(gt_kp,box,(H,W))
 
             # Append targets to text file
             # with open('targets.txt', 'a') as file:
             #     [file.write('%11.5g ' * 4 % tuple(x) + '\n') for x in torch.cat((txy[i], twh[i]), 1)]
+            keypoint_logits = pi[b, a,:,:,6:]
+            keypoint_logits = keypoint_logits.permute(0,3,1,2).contiguous().view(-1,H*W)
+            heatmaps = heatmaps.view(-1)
+            valid = valid.view(-1)
+            keypoint_loss = F.cross_entropy(keypoint_logits[valid],heatmaps[valid])
+        
+
+
 
         lobj += BCEobj(pi[..., 4], tobj)  # obj loss
+        
 
     # 乘上每种损失的对应权重
     lbox *= h['giou']
@@ -266,13 +289,14 @@ def compute_loss(p, targets, model):  # predictions, targets, model
     # loss = lbox + lobj + lcls
     return {"box_loss": lbox,
             "obj_loss": lobj,
-            "class_loss": lcls}
+            "class_loss": lcls,
+            "keypoint_loss":keypoint_loss}
 
 
 def build_targets(p, targets, model):
     # Build targets for compute_loss(), input targets(image_idx,class,x,y,w,h)
     nt = targets.shape[0]   #目标个数
-    tcls, tbox,tkeypoints indices, anch = [], [], [], [],[]
+    tcls, tbox,tkeypoints,indices, anch = [], [], [], [], []
     gain = torch.ones(174, device=targets.device)  # normalized to gridspace gain
 
     multi_gpu = type(model) in (nn.parallel.DataParallel, nn.parallel.DistributedDataParallel)
@@ -365,7 +389,7 @@ def non_max_suppression(prediction, conf_thres=0.1, iou_thres=0.6,
             i, j = (x[:, 5:] > conf_thres).nonzero(as_tuple=False).t()
             x = torch.cat((box[i], x[i, j + 5].unsqueeze(1), j.float().unsqueeze(1)), 1)
         else:  # best class only  直接针对每个类别中概率最大的类别进行非极大值抑制处理
-            conf, j = x[:, 5:].max(1)
+            conf, j = x[:, 5:5+nc].max(1)
             x = torch.cat((box, conf.unsqueeze(1), j.float().unsqueeze(1)), 1)[conf > conf_thres]
 
         # Filter by class
@@ -483,3 +507,40 @@ def kmean_anchors(path='./data/coco64.txt', n=9, img_size=(640, 640), thr=0.20, 
     k = print_results(k)
 
     return k
+
+
+def keypoints_to_heatmap(keypoints, rois, heatmap_size):
+    # type: (Tensor, Tensor, Tuple) -> Tuple[Tensor, Tensor]
+    keypoints = keypoints.view(keypoints.shape[0],-1,3)
+    offset_x = rois[:, 0]
+    offset_y = rois[:, 1]
+    scale_x = heatmap_size[1] / (rois[:, 2] - rois[:, 0])
+    scale_y = heatmap_size[0] / (rois[:, 3] - rois[:, 1])
+
+    offset_x = offset_x[:, None]
+    offset_y = offset_y[:, None]
+    scale_x = scale_x[:, None]
+    scale_y = scale_y[:, None]
+
+    x = keypoints[..., 0]
+    y = keypoints[..., 1]
+
+    x_boundary_inds = x == rois[:, 2][:, None]
+    y_boundary_inds = y == rois[:, 3][:, None]
+
+    x = (x - offset_x) * scale_x
+    x = x.floor().long()
+    y = (y - offset_y) * scale_y
+    y = y.floor().long()
+
+    x[x_boundary_inds] = heatmap_size[1] - 1
+    y[y_boundary_inds] = heatmap_size[0] - 1
+
+    valid_loc = (x >= 0) & (y >= 0) & (x < heatmap_size[1]) & (y < heatmap_size[0])
+    vis = keypoints[..., 2] > 0
+    valid = (valid_loc & vis).long()
+
+    lin_ind = y * heatmap_size[1] + x
+    heatmaps = lin_ind * valid
+
+    return heatmaps, valid

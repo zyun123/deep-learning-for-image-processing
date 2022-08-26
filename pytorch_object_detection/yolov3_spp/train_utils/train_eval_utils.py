@@ -126,12 +126,12 @@ def evaluate(model, data_loader, coco=None, device=None):
             torch.cuda.synchronize(device)
 
         model_time = time.time()
-        pred = model(imgs)[0]  # only get inference result
-        pred = non_max_suppression(pred, conf_thres=0.01, iou_thres=0.6, multi_label=False)
+        pred, keypoint_logits = model(imgs) # only get inference result
+        out_pred = non_max_suppression(pred, conf_thres=0.01, iou_thres=0.6, multi_label=False)
         model_time = time.time() - model_time
 
         outputs = []
-        for index, p in enumerate(pred):
+        for index, p in enumerate(out_pred):
             if p is None:
                 p = torch.empty((0, 6), device=cpu_device)
                 boxes = torch.empty((0, 4), device=cpu_device)
