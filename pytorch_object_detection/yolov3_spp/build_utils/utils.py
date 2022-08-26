@@ -366,7 +366,7 @@ def non_max_suppression(prediction, conf_thres=0.1, iou_thres=0.6,
     time_limit = 10.0  # seconds to quit after
 
     t = time.time()
-    nc = prediction[0].shape[1] - 5  # number of classes
+    nc = prediction[0].shape[1] - 5 -56 # number of classes
     multi_label &= nc > 1  # multiple labels per box
     output = [None] * prediction.shape[0]
     for xi, x in enumerate(prediction):  # image index, image inference 遍历每张图片
