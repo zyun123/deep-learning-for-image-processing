@@ -312,12 +312,12 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
             if x.size > 0:
                 # Normalized xywh to pixel xyxy format
                 labels = x.copy()  # label: class, x, y, w, h
-                labels[:, 1] = w * (x[:, 1] - x[:, 3] / 2) # pad width
-                labels[:, 2] = h * (x[:, 2] - x[:, 4] / 2) # pad height
-                labels[:, 3] = w * (x[:, 1] + x[:, 3] / 2)
-                labels[:, 4] = h * (x[:, 2] + x[:, 4] / 2)
-                labels[:,5::3] = w * x[:,5::3]
-                labels[:,6::3] = h * x[:,6::3]
+                labels[:, 1] = ratio[0] * w * (x[:, 1] - x[:, 3] / 2) + pad[0]  # pad width
+                labels[:, 2] = ratio[1] * h * (x[:, 2] - x[:, 4] / 2) + pad[1]  # pad height
+                labels[:, 3] = ratio[0] * w * (x[:, 1] + x[:, 3] / 2) + pad[0]
+                labels[:, 4] = ratio[1] * h * (x[:, 2] + x[:, 4] / 2) + pad[1]
+                labels[:,5::3] = ratio[0] * w * x[:,5::3] + pad[0]
+                labels[:,6::3] = ratio[0] * h * x[:,6::3] + pad[1]
 
         if self.augment:
             # Augment imagespace

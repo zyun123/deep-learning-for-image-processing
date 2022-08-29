@@ -130,22 +130,22 @@ class CocoEvaluator(object):
             if len(prediction) == 0:
                 continue
 
-            boxes = prediction["boxes"]
-            boxes = convert_to_xywh(boxes).tolist()
+            # boxes = prediction["boxes"]
+            # boxes = convert_to_xywh(boxes).tolist()
             scores = prediction["scores"].tolist()
-            labels = prediction["labels"].tolist()
+            # labels = prediction["labels"].tolist()
             keypoints = prediction["keypoints"]
-            keypoints = keypoints.flatten(start_dim=1).tolist()
+            keypoints = keypoints.flatten(start_dim=0).tolist()
 
             coco_results.extend(
                 [
                     {
                         "image_id": original_id,
-                        "category_id": labels[k],
-                        'keypoints': keypoint,
-                        "score": scores[k],
+                        # "category_id": labels[k],
+                        'keypoints': keypoints,
+                        "score": scores,
                     }
-                    for k, keypoint in enumerate(keypoints)
+                    
                 ]
             )
         return coco_results

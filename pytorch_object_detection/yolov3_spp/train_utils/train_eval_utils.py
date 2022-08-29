@@ -144,10 +144,31 @@ def evaluate(model, data_loader, coco=None, device=None):
                 # 将boxes信息还原回原图尺度，这样计算的mAP才是准确的
                 boxes = scale_coords(imgs[index].shape[1:], boxes, shapes[index][0]).round()
 
+            #heatmaps to keypoints
+            kp_logit = keypoint_logits[index]
+            w = kp_logit.shape[2]
+            h = kp_logit.shape[1]
+            num_keypoints = kp_logit.shape[0]
+            pos = kp_logit.reshape(num_keypoints,-1).argmax(dim=1)
+            x_int = pos % w
+            y_int = torch.div(pos - x_int, w, rounding_mode="floor")
+            xy_preds = torch.zeros((num_keypoints,3),dtype = torch.float32,device=keypoint_logits.device)
+            kp_scores = torch.zeros(num_keypoints,dtype=torch.float32,device=keypoint_logits.device)
+            pad = shapes[index][1][1]
+            xy_preds[:,0] = x_int - pad[0]
+            xy_preds[:,1] = y_int - pad[1]
+            xy_preds[:,2] = 1
+            xy_preds[:, 0].clamp_(0, w)  # x1
+            xy_preds[:, 1].clamp_(0, h)  # y1
+            
+            kp_scores = kp_logit[torch.arange(num_keypoints,device = kp_logit.device),y_int,x_int]
+
             # 注意这里传入的boxes格式必须是xmin, ymin, xmax, ymax，且为绝对坐标
             info = {"boxes": boxes.to(cpu_device),
                     "labels": p[:, 5].to(device=cpu_device, dtype=torch.int64),
-                    "scores": p[:, 4].to(cpu_device)}
+                    "scores": p[:, 4].to(cpu_device),
+                    "keypoints":xy_preds,
+                    "kp_scores":kp_scores}
             outputs.append(info)
 
         res = {img_id: output for img_id, output in zip(img_index, outputs)}
