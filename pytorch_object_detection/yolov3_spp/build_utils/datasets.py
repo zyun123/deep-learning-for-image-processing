@@ -302,9 +302,9 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
             img, (h0, w0), (h, w) = load_image(self, index)
 
             # letterbox
-            # shape = self.batch_shapes[self.batch[index]] if self.rect else self.img_size  # final letterboxed shape
-            # img, ratio, pad = letterbox(img, shape, auto=False, scale_up=self.augment)
-            # shapes = (h0, w0), ((h / h0, w / w0), pad)  # for COCO mAP rescaling
+            shape = self.batch_shapes[self.batch[index]] if self.rect else self.img_size  # final letterboxed shape
+            img, ratio, pad = letterbox(img, shape, auto=False, scale_up=self.augment)
+            shapes = (h0, w0), ((h / h0, w / w0), pad)  # for COCO mAP rescaling
 
             # load labels
             labels = []
@@ -394,13 +394,13 @@ def load_image(self, index):
         assert img is not None, "Image Not Found " + path
         h0, w0 = img.shape[:2]  # orig hw
         # img_size 设置的是预处理后输出的图片尺寸
-        # r = self.img_size / max(h0, w0)  # resize image to img_size
-        resize_hw = self.img_size
-        img = cv2.resize(img, (resize_hw[1],resize_hw[0]), interpolation=cv2.INTER_LINEAR)
-        # if r != 1:  # if sizes are not equal
-        #     interp = cv2.INTER_AREA if r < 1 and not self.augment else cv2.INTER_LINEAR
-        #     # img = cv2.resize(img, (int(w0 * r), int(h0 * r)), interpolation=interp)
-        #     img = cv2.resize(img, (int(w0 * r), int(h0 * r)), interpolation=interp)
+        r = max(self.img_size) / max(h0, w0)  # resize image to img_size
+        # resize_hw = self.img_size
+        # img = cv2.resize(img, (resize_hw[1],resize_hw[0]), interpolation=cv2.INTER_LINEAR)
+        if r != 1:  # if sizes are not equal
+            interp = cv2.INTER_AREA if r < 1 and not self.augment else cv2.INTER_LINEAR
+            # img = cv2.resize(img, (int(w0 * r), int(h0 * r)), interpolation=interp)
+            img = cv2.resize(img, (int(w0 * r), int(h0 * r)), interpolation=interp)
         return img, (h0, w0), img.shape[:2]  # img, hw_original, hw_resized
     else:
         return self.imgs[index], self.img_hw0[index], self.img_hw[index]  # img, hw_original, hw_resized

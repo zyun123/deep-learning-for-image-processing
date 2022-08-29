@@ -3,7 +3,8 @@ import math
 import os
 import random
 import time
-
+from typing import Optional, List, Dict, Tuple
+from torch import Tensor
 import cv2
 import matplotlib
 import numpy as np
@@ -366,7 +367,7 @@ def non_max_suppression(prediction, conf_thres=0.1, iou_thres=0.6,
     time_limit = 10.0  # seconds to quit after
 
     t = time.time()
-    nc = prediction[0].shape[1] - 5 -56 # number of classes
+    nc = prediction[0].shape[1] - 5 # number of classes
     multi_label &= nc > 1  # multiple labels per box
     output = [None] * prediction.shape[0]
     for xi, x in enumerate(prediction):  # image index, image inference 遍历每张图片
@@ -379,7 +380,7 @@ def non_max_suppression(prediction, conf_thres=0.1, iou_thres=0.6,
             continue
 
         # Compute conf
-        x[..., 5:] *= x[..., 4:5]  # conf = obj_conf * cls_conf
+        x[..., 5:5+nc] *= x[..., 4:5]  # conf = obj_conf * cls_conf
 
         # Box (center x, center y, width, height) to (x1, y1, x2, y2)
         box = xywh2xyxy(x[:, :4])
@@ -424,8 +425,8 @@ def non_max_suppression(prediction, conf_thres=0.1, iou_thres=0.6,
                 pass
 
         output[xi] = x[i]
-        if (time.time() - t) > time_limit:
-            break  # time limit exceeded
+        # if (time.time() - t) > time_limit:
+        #     break  # time limit exceeded
 
     return output
 
@@ -512,29 +513,29 @@ def kmean_anchors(path='./data/coco64.txt', n=9, img_size=(640, 640), thr=0.20, 
 def keypoints_to_heatmap(keypoints, rois, heatmap_size):
     # type: (Tensor, Tensor, Tuple) -> Tuple[Tensor, Tensor]
     keypoints = keypoints.view(keypoints.shape[0],-1,3)
-    offset_x = rois[:, 0]
-    offset_y = rois[:, 1]
-    scale_x = heatmap_size[1] / (rois[:, 2] - rois[:, 0])
-    scale_y = heatmap_size[0] / (rois[:, 3] - rois[:, 1])
+    # offset_x = rois[:, 0]
+    # offset_y = rois[:, 1]
+    # scale_x = heatmap_size[1] / (rois[:, 2] - rois[:, 0])
+    # scale_y = heatmap_size[0] / (rois[:, 3] - rois[:, 1])
 
-    offset_x = offset_x[:, None]
-    offset_y = offset_y[:, None]
-    scale_x = scale_x[:, None]
-    scale_y = scale_y[:, None]
+    # offset_x = offset_x[:, None]
+    # offset_y = offset_y[:, None]
+    # scale_x = scale_x[:, None]
+    # scale_y = scale_y[:, None]
 
     x = keypoints[..., 0]
     y = keypoints[..., 1]
 
-    x_boundary_inds = x == rois[:, 2][:, None]
-    y_boundary_inds = y == rois[:, 3][:, None]
+    # x_boundary_inds = x == rois[:, 2][:, None]
+    # y_boundary_inds = y == rois[:, 3][:, None]
 
-    x = (x - offset_x) * scale_x
+    # x = (x - offset_x) * scale_x
     x = x.floor().long()
-    y = (y - offset_y) * scale_y
+    # y = (y - offset_y) * scale_y
     y = y.floor().long()
 
-    x[x_boundary_inds] = heatmap_size[1] - 1
-    y[y_boundary_inds] = heatmap_size[0] - 1
+    # x[x_boundary_inds] = heatmap_size[1] - 1
+    # y[y_boundary_inds] = heatmap_size[0] - 1
 
     valid_loc = (x >= 0) & (y >= 0) & (x < heatmap_size[1]) & (y < heatmap_size[0])
     vis = keypoints[..., 2] > 0

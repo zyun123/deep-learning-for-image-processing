@@ -167,10 +167,12 @@ class YOLOLayer(nn.Module):
         # view: (batch_size, 255, 13, 13) -> (batch_size, 3, 85, 13, 13)
         # permute: (batch_size, 3, 85, 13, 13) -> (batch_size, 3, 13, 13, 85)
         # [bs, anchor, grid, grid, xywh + obj + classes]
-        p = p.view(bs, self.na, self.no, self.ny, self.nx).permute(0, 1, 3, 4, 2).contiguous()  # prediction
-
+        # p = p.view(bs, self.na, self.no, self.ny, self.nx).permute(0, 1, 3, 4, 2).contiguous()  # prediction
+        p1 = p[:,:self.na*(5+self.nc),:,:]
+        p2 = p[:,self.na*(5+self.nc):,:,:]
+        p1 = p1.view(bs,self.na,5+self.nc,self.ny,self.nx).permute(0,1,3,4,2).contiguous()
         if self.training:
-            return p
+            return p1,p2
         elif ONNX_EXPORT:
             # Avoid broadcasting for ANE operations
             m = self.na * self.nx * self.ny  # 3*
@@ -190,12 +192,14 @@ class YOLOLayer(nn.Module):
             return p
         else:  # inference
             # [bs, anchor, grid, grid, xywh + obj + classes]
-            io = p.clone()  # inference output
+            io = p1.clone()  # inference output
             io[..., :2] = torch.sigmoid(io[..., :2]) + self.grid  # xy 计算在feature map上的xy坐标
             io[..., 2:4] = torch.exp(io[..., 2:4]) * self.anchor_wh  # wh yolo method 计算在feature map上的wh
             io[..., :4] *= self.stride  # 换算映射回原图尺度
             torch.sigmoid_(io[..., 4:])
-            return io.view(bs, -1, self.no), p  # view [1, 3, 13, 13, 85] as [1, 507, 85]
+            # p2 = p2.permute(0,3,1,2).contiguous()
+            kp_logits = F.interpolate(p2,size =(int(self.ny*self.stride),int(self.nx*self.stride)),mode="bilinear",align_corners=False)
+            return io.view(bs, -1, self.nc+5), p1,kp_logits  # view [1, 3, 13, 13, 85] as [1, 507, 85]
 
 
 class Darknet(nn.Module):
@@ -269,10 +273,10 @@ class Darknet(nn.Module):
 
             return p
         else:  # inference or test
-            x, p = zip(*yolo_out)  # inference output, training output
+            x, p ,kp_logits= zip(*yolo_out)  # inference output, training output
             x = torch.cat(x, 1)  # cat yolo outputs
-
-            return x, p
+            kp_logits = torch.cat(kp_logits,1)
+            return x, p,kp_logits
 
     def info(self, verbose=False):
         """

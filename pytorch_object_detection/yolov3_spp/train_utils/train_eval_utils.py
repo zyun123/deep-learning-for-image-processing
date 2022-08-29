@@ -115,6 +115,7 @@ def evaluate(model, data_loader, coco=None, device=None):
     if coco is None:
         coco = get_coco_api_from_dataset(data_loader.dataset)
     iou_types = _get_iou_types(model)
+    iou_types.append('keypoints')
     coco_evaluator = CocoEvaluator(coco, iou_types)
 
     for imgs, targets, paths, shapes, img_index in metric_logger.log_every(data_loader, 100, header):
@@ -126,7 +127,8 @@ def evaluate(model, data_loader, coco=None, device=None):
             torch.cuda.synchronize(device)
 
         model_time = time.time()
-        pred, keypoint_logits = model(imgs) # only get inference result
+        pred, _,keypoint_logits = model(imgs) # only get inference result
+        # keypoint_logits = keypoint_logits[0][:,]
         out_pred = non_max_suppression(pred, conf_thres=0.01, iou_thres=0.6, multi_label=False)
         model_time = time.time() - model_time
 

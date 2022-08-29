@@ -34,6 +34,11 @@ def convert_to_coco_api(ds):
             boxes[[0, 2]] *= img_dict["width"]
             boxes[[1, 3]] *= img_dict["height"]
             boxes = boxes.tolist()
+            keypoints = obj[5:]
+            keypoints[::3] *=img_dict["width"]
+            keypoints[1::3] *=img_dict["height"]
+            keypoints = keypoints.view(-1,3)
+            ann["keypoints"] = keypoints
 
             ann["bbox"] = boxes
             ann["category_id"] = int(obj[0])
