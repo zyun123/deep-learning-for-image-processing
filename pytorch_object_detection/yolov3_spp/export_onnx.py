@@ -18,8 +18,8 @@ def to_numpy(tensor):
 
 def main():
     img_size = 512  # 必须是32的整数倍 [416, 512, 608]
-    cfg = "cfg/yolov3-spp.cfg"
-    weights = "weights/yolov3-spp-ultralytics-{}.pt".format(img_size)
+    cfg = "cfg/my_yolov3.cfg"
+    weights = "weights/yolov3spp-16.pt"
     assert os.path.exists(cfg), "cfg file does not exist..."
     assert os.path.exists(weights), "weights file does not exist..."
 
@@ -49,7 +49,7 @@ def main():
     x = torch.tensor(img)
     torch_out = model(x)
 
-    save_path = "yolov3spp.onnx"
+    save_path = "./weights/yolov3spp.onnx"
     # export the model
     torch.onnx.export(model,                       # model being run
                       x,                           # model input (or a tuple for multiple inputs)

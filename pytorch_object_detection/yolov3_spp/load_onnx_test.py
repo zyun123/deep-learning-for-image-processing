@@ -4,9 +4,11 @@ import onnx
 import onnxruntime
 import numpy as np
 from matplotlib import pyplot as plt
-from draw_box_utils import draw_box
+# from draw_box_utils import draw_box
+import json
+from PIL import Image
 
-
+from draw_box_utils import draw_objs
 def to_numpy(tensor):
     return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
 
@@ -200,7 +202,7 @@ def post_process(pred: np.ndarray, multi_label=False, conf_thres=0.3):
 
 def main():
     img_size = 512
-    save_path = "yolov3spp.onnx"
+    save_path = "./weights/yolov3spp.onnx"
     img_path = "test.jpg"
     input_size = (img_size, img_size)  # h, w
 
@@ -208,7 +210,7 @@ def main():
     onnx_model = onnx.load(save_path)
     onnx.checker.check_model(onnx_model)
     # print(onnx.helper.printable_graph(onnx_model.graph))
-    ort_session = onnxruntime.InferenceSession(save_path)
+    ort_session = onnxruntime.InferenceSession(save_path,providers = ["CUDAExecutionProvider"])
 
     img_o = cv2.imread(img_path)  # BGR
     assert img_o is not None, "Image Not Found " + img_path
@@ -229,7 +231,7 @@ def main():
     # prediction: [num_obj, 85]
     pred = ort_session.run(None, ort_inputs)[0]
     t2 = time.time()
-    print(t2 - t1)
+    print("onnx runtime used time : ",t2 - t1)
     # print(predictions.shape[0])
     # process detections
     # 这里预测的数值是相对坐标(0-1之间)，乘上图像尺寸转回绝对坐标
@@ -248,9 +250,25 @@ def main():
     scores = pred[:, 4]
     classes = pred[:, 5].astype(np.int) + 1
 
-    category_index = dict([(i + 1, str(i + 1)) for i in range(90)])
-    img_o = draw_box(img_o[:, :, ::-1], bboxes, classes, scores, category_index)
-    plt.imshow(img_o)
+    # category_index = dict([(i + 1, str(i + 1)) for i in range(90)])
+    # img_o = draw_box(img_o[:, :, ::-1], bboxes, classes, scores, category_index)
+
+    json_path = "./data/pascal_voc_classes.json"  # json标签文件
+    with open(json_path, 'r') as f:
+        class_dict = json.load(f)
+
+    category_index = {str(v): str(k) for k, v in class_dict.items()}
+    pil_img = Image.fromarray(img_o[:, :, ::-1])
+    plot_img = draw_objs(pil_img,
+                            bboxes,
+                            classes,
+                            scores,
+                            category_index=category_index,
+                            box_thresh=0.2,
+                            line_thickness=1,
+                            font='arial.ttf',
+                            font_size=5)
+    plt.imshow(plot_img)
     plt.show()
 
 
