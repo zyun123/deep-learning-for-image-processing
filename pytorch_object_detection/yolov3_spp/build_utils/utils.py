@@ -206,7 +206,8 @@ def smooth_BCE(eps=0.1):  # https://github.com/ultralytics/yolov3/issues/238#iss
     return 1.0 - 0.5 * eps, 0.5 * eps
 
 
-def compute_loss(p, targets, model):  # predictions, targets, model
+def compute_loss(p, kp_pred,targets, model):  # predictions, targets, model
+    
     device = p[0].device
     lcls = torch.zeros(1, device=device)  # Tensor(0)
     lbox = torch.zeros(1, device=device)  # Tensor(0)
@@ -237,7 +238,7 @@ def compute_loss(p, targets, model):  # predictions, targets, model
         if nb:
             # 对应匹配到正样本的预测信息
             ps = pi[b, a, gj, gi]  # prediction subset corresponding to targets
-            N,A,H,W,_= pi.shape
+            # N,A,H,W,_= pi.shape
 
             # GIoU
             pxy = ps[:, :2].sigmoid()
@@ -257,30 +258,42 @@ def compute_loss(p, targets, model):  # predictions, targets, model
                 t = torch.full_like(ps[:, 5:], cn, device=device)  # targets
                 t[range(nb), tcls[i]] = cp
                 lcls += BCEcls(ps[:, 5:], t)  # BCE 二值交叉熵 ps[:,5:].shape == t.shape
-            pxyxys = []
-            pbox_xyxy = torch.zeros_like(pbox)
-            pbox_xyxy[:,:2] = pbox[:,:2]+torch.vstack((gi,gj)).T
-            pbox_xyxy[:,2:] += pbox[:,2:]
-            pbox_xyxy = xywh2xyxy(pbox_xyxy)
-            pxyxys.append(pbox_xyxy)
+            # pxyxys = []
+            # pbox_xyxy = torch.zeros_like(pbox)
+            # pbox_xyxy[:,:2] = pbox[:,:2]+torch.vstack((gi,gj)).T
+            # pbox_xyxy[:,2:] += pbox[:,2:]
+            # pbox_xyxy = xywh2xyxy(pbox_xyxy)
+            # pxyxys.append(pbox_xyxy)
 
-            for box,gt_kp in zip(pxyxys,tkeypoints):
-                heatmaps,valid = keypoints_to_heatmap(gt_kp,box,(H,W))
+            # for box,gt_kp in zip(pxyxys,tkeypoints):
+            #     heatmaps,valid = keypoints_to_heatmap(gt_kp,box,(H,W))
 
             # Append targets to text file
             # with open('targets.txt', 'a') as file:
             #     [file.write('%11.5g ' * 4 % tuple(x) + '\n') for x in torch.cat((txy[i], twh[i]), 1)]
-            keypoint_logits = pi[b, a,:,:,6:]
-            keypoint_logits = keypoint_logits.permute(0,3,1,2).contiguous().view(-1,H*W)
-            heatmaps = heatmaps.view(-1)
-            valid = valid.view(-1)
-            keypoint_loss = F.cross_entropy(keypoint_logits[valid],heatmaps[valid])
-        
-
-
-
+            # keypoint_logits = pi[b, a,:,:,6:]
+            # keypoint_logits = keypoint_logits.permute(0,3,1,2).contiguous().view(-1,H*W)
+            # heatmaps = heatmaps.view(-1)
+            # valid = valid.view(-1)
+            # keypoint_loss = F.cross_entropy(keypoint_logits[valid],heatmaps[valid])
         lobj += BCEobj(pi[..., 4], tobj)  # obj loss
-        
+
+
+    N,K,H,W = kp_pred[0].shape
+    heatmaps = []
+    valid = []
+    for i in range(len(tkeypoints)):
+        # t_kp = tkeypoints[i].view(-1,3)
+        per_heatmaps,per_valid = keypoints_to_heatmap(tkeypoints[i],(H,W))
+        heatmaps.append(per_heatmaps)
+        valid.append(per_valid)
+    keypoint_targets = torch.cat(heatmaps, dim=0)
+    valid = torch.cat(valid, dim=0).to(dtype=torch.uint8)
+    valid = torch.where(valid)[0]
+    if keypoint_targets.numel() == 0 or len(valid) == 0:
+        pass
+    keypoint_logits = kp_pred[0].contiguous().view(N*K,H*W)
+    keypoint_loss += F.cross_entropy(keypoint_logits[valid], keypoint_targets[valid]) 
 
     # 乘上每种损失的对应权重
     lbox *= h['giou']
@@ -316,6 +329,8 @@ def build_targets(p, targets, model):
 
         # Match targets to anchors
         a, t, offsets = [], targets * gain, 0
+        for i in range(len(t)):
+            tkeypoints.append(t[i][6:])
         if nt:  # 如果存在target的话
             # 通过计算anchor模板与所有target的wh_iou来匹配正样本
             # j: [3, nt] , iou_t = 0.20
@@ -333,7 +348,7 @@ def build_targets(p, targets, model):
         gi, gj = gij.T  # grid xy indices
 
         #keypoints
-        tkeypoints.append(t[:,6:])
+        # tkeypoints.append(t[:,6:])
 
         # Append
         # gain[3]: grid_h, gain[2]: grid_w
@@ -510,9 +525,9 @@ def kmean_anchors(path='./data/coco64.txt', n=9, img_size=(640, 640), thr=0.20, 
     return k
 
 
-def keypoints_to_heatmap(keypoints, rois, heatmap_size):
+def keypoints_to_heatmap(keypoints,heatmap_size):
     # type: (Tensor, Tensor, Tuple) -> Tuple[Tensor, Tensor]
-    keypoints = keypoints.view(keypoints.shape[0],-1,3)
+    keypoints = keypoints.view(-1,3)
     # offset_x = rois[:, 0]
     # offset_y = rois[:, 1]
     # scale_x = heatmap_size[1] / (rois[:, 2] - rois[:, 0])
@@ -523,8 +538,8 @@ def keypoints_to_heatmap(keypoints, rois, heatmap_size):
     # scale_x = scale_x[:, None]
     # scale_y = scale_y[:, None]
 
-    x = keypoints[..., 0]
-    y = keypoints[..., 1]
+    x = keypoints[:, 0]
+    y = keypoints[:, 1]
 
     # x_boundary_inds = x == rois[:, 2][:, None]
     # y_boundary_inds = y == rois[:, 3][:, None]

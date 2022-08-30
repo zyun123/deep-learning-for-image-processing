@@ -60,8 +60,8 @@ def main(args):
             # transforms.HalfBody(0.3, person_kps_info["upper_body_ids"], person_kps_info["lower_body_ids"]),
             transforms.AffineTransform(rotation=(-5, 5), fixed_size=fixed_size),
             # transforms.RandomHorizontalFlip(0.5, person_kps_info["flip_pairs"]),
-            # transforms.KeypointToHeatMap(heatmap_hw=heatmap_hw, gaussian_sigma=2, keypoints_weights=kps_weights),
-            transforms.RcnnKeypointToHeatmap(heatmap_hw=heatmap_hw,keypoints_weights=kps_weights),
+            transforms.KeypointToHeatMap(heatmap_hw=heatmap_hw, gaussian_sigma=2, keypoints_weights=kps_weights),
+            # transforms.RcnnKeypointToHeatmap(heatmap_hw=heatmap_hw,keypoints_weights=kps_weights),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.596, 0.575, 0.554], std=[0.096,0.118,0.169])
         ]),
@@ -135,15 +135,15 @@ def main(args):
 
     for epoch in range(args.start_epoch, args.epochs):
         # train for one epoch, printing every 50 iterations
-        mean_loss, lr = utils.train_one_epoch(model, optimizer, train_data_loader,
-                                              device=device, epoch=epoch,
-                                              print_freq=50, warmup=True,
-                                              scaler=scaler)
-        train_loss.append(mean_loss.item())
-        learning_rate.append(lr)
+        # mean_loss, lr = utils.train_one_epoch(model, optimizer, train_data_loader,
+        #                                       device=device, epoch=epoch,
+        #                                       print_freq=50, warmup=True,
+        #                                       scaler=scaler)
+        # train_loss.append(mean_loss.item())
+        # learning_rate.append(lr)
 
-        # update the learning rate
-        lr_scheduler.step()
+        # # update the learning rate
+        # lr_scheduler.step()
 
         # evaluate on the test dataset
         # coco_info = utils.evaluate(model, val_data_set_loader, device=device,

@@ -26,7 +26,7 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch,
         lr_scheduler = utils.warmup_lr_scheduler(optimizer, warmup_iters, warmup_factor)
         accumulate = 1
 
-    mloss = torch.zeros(4).to(device)  # mean losses
+    mloss = torch.zeros(5).to(device)  # mean losses
     now_lr = 0.
     nb = len(data_loader)  # number of batches
     # imgs: [batch_size, 3, img_size, img_size]
@@ -57,10 +57,10 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch,
 
         # 混合精度训练上下文管理器，如果在CPU环境中不起任何作用
         with amp.autocast(enabled=scaler is not None):
-            pred = model(imgs)
+            pred,kp_pred = model(imgs)
 
             # loss
-            loss_dict = compute_loss(pred, targets, model)
+            loss_dict = compute_loss(pred,kp_pred,targets, model)
             losses = sum(loss for loss in loss_dict.values())
 
         # reduce losses over all GPUs for logging purpose
@@ -69,6 +69,7 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch,
         loss_items = torch.cat((loss_dict_reduced["box_loss"],
                                 loss_dict_reduced["obj_loss"],
                                 loss_dict_reduced["class_loss"],
+                                loss_dict_reduced["keypoint_loss"],
                                 losses_reduced)).detach()
         mloss = (mloss * i + loss_items) / (i + 1)  # update mean losses
 
@@ -157,18 +158,18 @@ def evaluate(model, data_loader, coco=None, device=None):
             pad = shapes[index][1][1]
             xy_preds[:,0] = x_int - pad[0]
             xy_preds[:,1] = y_int - pad[1]
-            xy_preds[:,2] = 1
+            
             xy_preds[:, 0].clamp_(0, w)  # x1
             xy_preds[:, 1].clamp_(0, h)  # y1
             
             kp_scores = kp_logit[torch.arange(num_keypoints,device = kp_logit.device),y_int,x_int]
-
+            xy_preds[:,2] = kp_scores
             # 注意这里传入的boxes格式必须是xmin, ymin, xmax, ymax，且为绝对坐标
             info = {"boxes": boxes.to(cpu_device),
                     "labels": p[:, 5].to(device=cpu_device, dtype=torch.int64),
                     "scores": p[:, 4].to(cpu_device),
                     "keypoints":xy_preds,
-                    "kp_scores":kp_scores}
+                    }
             outputs.append(info)
 
         res = {img_id: output for img_id, output in zip(img_index, outputs)}

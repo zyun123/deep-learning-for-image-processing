@@ -205,19 +205,19 @@ def train(hyp):
     print("starting traning for %g epochs..." % epochs)
     print('Using %g dataloader workers' % nw)
     for epoch in range(start_epoch, epochs):
-        # mloss, lr = train_util.train_one_epoch(model, optimizer, train_dataloader,
-        #                                        device, epoch,
-        #                                        accumulate=accumulate,  # 迭代多少batch才训练完64张图片
-        #                                        img_size=imgsz_train,  # 输入图像的大小
-        #                                        multi_scale=multi_scale,
-        #                                        grid_min=grid_min,  # grid的最小尺寸
-        #                                        grid_max=grid_max,  # grid的最大尺寸
-        #                                        gs=gs,  # grid step: 32
-        #                                        print_freq=50,  # 每训练多少个step打印一次信息
-        #                                        warmup=True,
-        #                                        scaler=scaler)
-        # update scheduler
-        # scheduler.step()
+        mloss, lr = train_util.train_one_epoch(model, optimizer, train_dataloader,
+                                               device, epoch,
+                                               accumulate=accumulate,  # 迭代多少batch才训练完64张图片
+                                               img_size=imgsz_train,  # 输入图像的大小
+                                               multi_scale=multi_scale,
+                                               grid_min=grid_min,  # grid的最小尺寸
+                                               grid_max=grid_max,  # grid的最大尺寸
+                                               gs=gs,  # grid step: 32
+                                               print_freq=50,  # 每训练多少个step打印一次信息
+                                               warmup=True,
+                                               scaler=scaler)
+        #update scheduler
+        scheduler.step()
 
         if opt.notest is False or epoch == epochs - 1:
             # evaluate on the test dataset

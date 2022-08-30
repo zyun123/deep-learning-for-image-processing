@@ -226,7 +226,7 @@ class Darknet(nn.Module):
     def forward_once(self, x, verbose=False):
         # yolo_out收集每个yolo_layer层的输出
         # out收集每个模块的输出
-        yolo_out, out = [], []
+        yolo_out,kp_out, out = [], [],[]
         if verbose:
             print('0', x.shape)
             str = ""
@@ -240,7 +240,9 @@ class Darknet(nn.Module):
                     str = ' >> ' + ' + '.join(['layer %g %s' % x for x in zip(l, sh)])
                 x = module(x, out)  # WeightedFeatureFusion(), FeatureConcat()
             elif name == "YOLOLayer":
-                yolo_out.append(module(x))
+                module_out = module(x)
+                yolo_out.append(module_out[0])
+                kp_out.append(module_out[1])
             else:  # run module directly, i.e. mtype = 'convolutional', 'upsample', 'maxpool', 'batchnorm2d' etc.
                 x = module(x)
 
@@ -250,7 +252,7 @@ class Darknet(nn.Module):
                 str = ''
 
         if self.training:  # train
-            return yolo_out
+            return yolo_out,kp_out
         elif ONNX_EXPORT:  # export
             # x = [torch.cat(x, 0) for x in zip(*yolo_out)]
             # return x[0], torch.cat(x[1:3], 1)  # scores, boxes: 3780x80, 3780x4

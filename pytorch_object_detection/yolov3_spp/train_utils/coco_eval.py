@@ -22,6 +22,8 @@ class CocoEvaluator(object):
         self.coco_eval = {}
         for iou_type in iou_types:
             self.coco_eval[iou_type] = COCOeval(coco_gt, iouType=iou_type)
+            if iou_type == 'keypoints':
+                self.coco_eval[iou_type].params.kpt_oks_sigmas = np.ones(coco_gt.anns[1]["num_keypoints"],dtype=np.float)*0.006
 
         self.img_ids = []
         self.eval_imgs = {k: [] for k in iou_types}
@@ -132,21 +134,27 @@ class CocoEvaluator(object):
 
             # boxes = prediction["boxes"]
             # boxes = convert_to_xywh(boxes).tolist()
-            scores = prediction["scores"].tolist()
+            # scores = prediction["scores"].tolist()
             # labels = prediction["labels"].tolist()
+            
             keypoints = prediction["keypoints"]
+            scores = keypoints[:,2]
+            mask = keypoints[:,2]>0.2
+            if mask.sum() == 0:
+                k_score = 0
+            else:
+                k_score = torch.mean(keypoints[:,2][mask])
             keypoints = keypoints.flatten(start_dim=0).tolist()
-
-            coco_results.extend(
-                [
+            keypoints = [round(k,2) for k in keypoints]
+            
+            coco_results.append(
                     {
                         "image_id": original_id,
-                        # "category_id": labels[k],
+                        "category_id": 1,
                         'keypoints': keypoints,
-                        "score": scores,
+                        "score": k_score,
                     }
-                    
-                ]
+
             )
         return coco_results
 
