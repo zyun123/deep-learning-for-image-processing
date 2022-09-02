@@ -4,7 +4,8 @@ from torch.cuda import amp
 import torch.nn.functional as F
 
 from build_utils.utils import *
-from .coco_eval import CocoEvaluator
+# from .coco_eval import CocoEvaluator
+from .coco_eval import EvalCOCOMetric
 from .coco_utils import get_coco_api_from_dataset
 import train_utils.distributed_utils as utils
 
@@ -115,14 +116,16 @@ def evaluate(model, data_loader, coco=None, device=None):
 
     if coco is None:
         coco = get_coco_api_from_dataset(data_loader.dataset)
-    iou_types = _get_iou_types(model)
-    iou_types.append('keypoints')
-    coco_evaluator = CocoEvaluator(coco, iou_types)
+    # iou_types = _get_iou_types(model)
+    # iou_types.append('keypoints')
+
+
+    det_metric = EvalCOCOMetric(coco, iou_type="bbox", results_file_name="det_results.json")
+    key_metric = EvalCOCOMetric(coco, iou_type="keypoints", results_file_name="kp_results.json")
 
     for imgs, targets, paths, shapes, img_index in metric_logger.log_every(data_loader, 100, header):
         imgs = imgs.to(device).float() / 255.0  # uint8 to float32, 0 - 255 to 0.0 - 1.0
         # targets = targets.to(device)
-
         # 当使用CPU时，跳过GPU相关指令
         if device != torch.device("cpu"):
             torch.cuda.synchronize(device)
@@ -154,43 +157,47 @@ def evaluate(model, data_loader, coco=None, device=None):
             x_int = pos % w
             y_int = torch.div(pos - x_int, w, rounding_mode="floor")
             xy_preds = torch.zeros((num_keypoints,3),dtype = torch.float32,device=keypoint_logits.device)
-            kp_scores = torch.zeros(num_keypoints,dtype=torch.float32,device=keypoint_logits.device)
-            pad = shapes[index][1][1]
-            xy_preds[:,0] = x_int - pad[0]
-            xy_preds[:,1] = y_int - pad[1]
-            
-            xy_preds[:, 0].clamp_(0, w)  # x1
-            xy_preds[:, 1].clamp_(0, h)  # y1
-            
+            # kp_scores = torch.zeros(num_keypoints,dtype=torch.float32,device=keypoint_logits.device)
             kp_scores = kp_logit[torch.arange(num_keypoints,device = kp_logit.device),y_int,x_int]
             xy_preds[:,2] = kp_scores
+ 
+            xy_preds[:,0] = x_int
+            xy_preds[:,1] = y_int
+            xy_preds = scale_kp_coords(imgs[index].shape[1:], xy_preds, shapes[index][0])
+            
+            
             # 注意这里传入的boxes格式必须是xmin, ymin, xmax, ymax，且为绝对坐标
             info = {"boxes": boxes.to(cpu_device),
                     "labels": p[:, 5].to(device=cpu_device, dtype=torch.int64),
                     "scores": p[:, 4].to(cpu_device),
-                    "keypoints":xy_preds,
+                    "keypoints":xy_preds.to(cpu_device),
                     }
             outputs.append(info)
 
         res = {img_id: output for img_id, output in zip(img_index, outputs)}
 
         evaluator_time = time.time()
-        coco_evaluator.update(res)
+        det_metric.update(res)
+        key_metric.update(res)
         evaluator_time = time.time() - evaluator_time
         metric_logger.update(model_time=model_time, evaluator_time=evaluator_time)
 
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
     print("Averaged stats:", metric_logger)
-    coco_evaluator.synchronize_between_processes()
+    det_metric.synchronize_results()
+    key_metric.synchronize_results()
 
     # accumulate predictions from all images
-    coco_evaluator.accumulate()
-    coco_evaluator.summarize()
+    if utils.is_main_process():
+        coco_info = det_metric.evaluate()
+        key_info = key_metric.evaluate()
+    else:
+        coco_info = None
+        key_info = None
 
-    result_info = coco_evaluator.coco_eval[iou_types[0]].stats.tolist()  # numpy to list
+    return coco_info, key_info
 
-    return result_info
 
 
 def _get_iou_types(model):
@@ -199,3 +206,111 @@ def _get_iou_types(model):
         model_without_ddp = model.module
     iou_types = ["bbox"]
     return iou_types
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# @torch.no_grad()
+# def evaluate(model, data_loader, coco=None, device=None):
+#     cpu_device = torch.device("cpu")
+#     model.eval()
+#     metric_logger = utils.MetricLogger(delimiter="  ")
+#     header = "Test: "
+
+#     if coco is None:
+#         coco = get_coco_api_from_dataset(data_loader.dataset)
+#     iou_types = _get_iou_types(model)
+#     iou_types.append('keypoints')
+#     coco_evaluator = CocoEvaluator(coco, iou_types)
+
+#     for imgs, targets, paths, shapes, img_index in metric_logger.log_every(data_loader, 100, header):
+#         imgs = imgs.to(device).float() / 255.0  # uint8 to float32, 0 - 255 to 0.0 - 1.0
+#         # targets = targets.to(device)
+
+#         # 当使用CPU时，跳过GPU相关指令
+#         if device != torch.device("cpu"):
+#             torch.cuda.synchronize(device)
+
+#         model_time = time.time()
+#         pred, _,keypoint_logits = model(imgs) # only get inference result
+#         # keypoint_logits = keypoint_logits[0][:,]
+#         out_pred = non_max_suppression(pred, conf_thres=0.01, iou_thres=0.6, multi_label=False)
+#         model_time = time.time() - model_time
+
+#         outputs = []
+#         for index, p in enumerate(out_pred):
+#             if p is None:
+#                 p = torch.empty((0, 6), device=cpu_device)
+#                 boxes = torch.empty((0, 4), device=cpu_device)
+#             else:
+#                 # xmin, ymin, xmax, ymax
+#                 boxes = p[:, :4]
+#                 # shapes: (h0, w0), ((h / h0, w / w0), pad)
+#                 # 将boxes信息还原回原图尺度，这样计算的mAP才是准确的
+#                 boxes = scale_coords(imgs[index].shape[1:], boxes, shapes[index][0]).round()
+
+#             #heatmaps to keypoints
+#             kp_logit = keypoint_logits[index]
+#             w = kp_logit.shape[2]
+#             h = kp_logit.shape[1]
+#             num_keypoints = kp_logit.shape[0]
+#             pos = kp_logit.reshape(num_keypoints,-1).argmax(dim=1)
+#             x_int = pos % w
+#             y_int = torch.div(pos - x_int, w, rounding_mode="floor")
+#             xy_preds = torch.zeros((num_keypoints,3),dtype = torch.float32,device=keypoint_logits.device)
+#             # kp_scores = torch.zeros(num_keypoints,dtype=torch.float32,device=keypoint_logits.device)
+#             kp_scores = kp_logit[torch.arange(num_keypoints,device = kp_logit.device),y_int,x_int]
+#             xy_preds[:,2] = kp_scores
+ 
+#             xy_preds[:,0] = x_int
+#             xy_preds[:,1] = y_int
+#             xy_preds = scale_kp_coords(imgs[index].shape[1:], xy_preds, shapes[index][0])
+            
+            
+#             # 注意这里传入的boxes格式必须是xmin, ymin, xmax, ymax，且为绝对坐标
+#             info = {"boxes": boxes.to(cpu_device),
+#                     "labels": p[:, 5].to(device=cpu_device, dtype=torch.int64),
+#                     "scores": p[:, 4].to(cpu_device),
+#                     "keypoints":xy_preds,
+#                     }
+#             outputs.append(info)
+
+#         res = {img_id: output for img_id, output in zip(img_index, outputs)}
+
+#         evaluator_time = time.time()
+#         coco_evaluator.update(res)
+#         evaluator_time = time.time() - evaluator_time
+#         metric_logger.update(model_time=model_time, evaluator_time=evaluator_time)
+
+#     # gather the stats from all processes
+#     metric_logger.synchronize_between_processes()
+#     print("Averaged stats:", metric_logger)
+#     coco_evaluator.synchronize_between_processes()
+
+#     # accumulate predictions from all images
+#     coco_evaluator.accumulate()
+#     coco_evaluator.summarize()
+
+#     result_info = coco_evaluator.coco_eval[iou_types[0]].stats.tolist()  # numpy to list
+
+#     return result_info
+
+
+# def _get_iou_types(model):
+#     model_without_ddp = model
+#     if isinstance(model, torch.nn.parallel.DistributedDataParallel):
+#         model_without_ddp = model.module
+#     iou_types = ["bbox"]
+#     return iou_types
+

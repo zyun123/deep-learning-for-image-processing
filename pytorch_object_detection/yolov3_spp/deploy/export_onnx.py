@@ -18,12 +18,14 @@ def to_numpy(tensor):
 
 def main():
     img_size = 512  # 必须是32的整数倍 [416, 512, 608]
-    cfg = "cfg/yolov3-spp.cfg"
-    weights = "weights/yolov3-spp-ultralytics-{}.pt".format(img_size)
+    cfg = "cfg/my_yolov3.cfg"
+    # weights = "weights/yolov3-spp-ultralytics-{}.pt".format(img_size)
+    weights = "/911G/EightModelOutputs/models/yolo_kp_736_1280_02/yolov3spp-14.pt"
     assert os.path.exists(cfg), "cfg file does not exist..."
     assert os.path.exists(weights), "weights file does not exist..."
 
-    input_size = (img_size, img_size)  # [h, w]
+    # input_size = (img_size, img_size)  # [h, w]
+    input_size = (736,1280)  # [h, w]
 
     # create model
     model = models.Darknet(cfg, input_size)
@@ -34,7 +36,7 @@ def main():
     # input to the model
     # [batch, channel, height, width]
     # x = torch.rand(1, 3, *input_size, requires_grad=True)
-    img_path = "test.jpg"
+    img_path = "000001.jpg"
     img_o = cv2.imread(img_path)  # BGR
     assert img_o is not None, "Image Not Found " + img_path
 
@@ -47,9 +49,9 @@ def main():
     img /= 255.0  # scale (0, 255) to (0, 1)
     img = np.expand_dims(img, axis=0)  # add batch dimension
     x = torch.tensor(img)
-    torch_out = model(x)
+    box_out,kp_out = model(x)
 
-    save_path = "yolov3spp.onnx"
+    save_path = "./onnx_export_weight/yolov3spp_kp.onnx"
     # export the model
     torch.onnx.export(model,                       # model being run
                       x,                           # model input (or a tuple for multiple inputs)
@@ -79,7 +81,7 @@ def main():
 
     # compare ONNX Runtime and Pytorch results
     # assert_allclose: Raises an AssertionError if two objects are not equal up to desired tolerance.
-    np.testing.assert_allclose(to_numpy(torch_out), ort_outs[0], rtol=1e-03, atol=1e-05)
+    np.testing.assert_allclose(to_numpy(box_out), ort_outs[0], rtol=1e-03, atol=1e-05)
     # np.testing.assert_allclose(to_numpy(torch_out[1]), ort_outs[1], rtol=1e-03, atol=1e-05)
     # np.testing.assert_allclose(to_numpy(torch_out[2]), ort_outs[2], rtol=1e-03, atol=1e-05)
     print("Exported model has been tested with ONNXRuntime, and the result looks good!")

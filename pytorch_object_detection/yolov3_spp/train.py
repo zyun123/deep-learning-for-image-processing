@@ -30,6 +30,9 @@ def train(hyp):
     imgsz_train = opt.img_size
     imgsz_test = opt.img_size  # test image sizes
     multi_scale = opt.multi_scale
+    output_dir = opt.output_dir
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
 
     # Image sizes
@@ -221,44 +224,53 @@ def train(hyp):
 
         if opt.notest is False or epoch == epochs - 1:
             # evaluate on the test dataset
-            result_info = train_util.evaluate(model, val_datasetloader,
+            det_info,key_info = train_util.evaluate(model, val_datasetloader,
                                               coco=coco, device=device)
 
-            coco_mAP = result_info[0]
-            voc_mAP = result_info[1]
-            coco_mAR = result_info[8]
+            det_coco_mAP = det_info[0]
+            det_voc_mAP = det_info[1]
+            det_coco_mAR = det_info[8]
+
+            key_coco_mAP = key_info[0]
+            key_voc_mAP = key_info[1]
+            key_coco_mAR = key_info[8]
 
             # write into tensorboard
             if tb_writer:
-                tags = ['train/giou_loss', 'train/obj_loss', 'train/cls_loss', 'train/loss', "learning_rate",
-                        "mAP@[IoU=0.50:0.95]", "mAP@[IoU=0.5]", "mAR@[IoU=0.50:0.95]"]
+                tags = ['train/giou_loss', 'train/obj_loss', 'train/cls_loss', 'train/keypoint_loss','train/loss', "learning_rate",
+                        "detection/mAP@[IoU=0.50:0.95]", "detection/mAP@[IoU=0.5]", "detection/mAR@[IoU=0.50:0.95]",
+                        "keypoint/mAP@[IoU=0.50:0.95]", "keypoint/mAP@[IoU=0.5]", "keypoint/mAR@[IoU=0.50:0.95]"]
 
-                for x, tag in zip(mloss.tolist() + [lr, coco_mAP, voc_mAP, coco_mAR], tags):
+                for x, tag in zip(mloss.tolist() + [lr, det_coco_mAP, det_voc_mAP, det_coco_mAR,key_coco_mAP,key_voc_mAP,key_coco_mAR], tags):
                     tb_writer.add_scalar(tag, x, epoch)
 
             # write into txt
-            with open(results_file, "a") as f:
-                # 记录coco的12个指标加上训练总损失和lr
-                result_info = [str(round(i, 4)) for i in result_info + [mloss.tolist()[-1]]] + [str(round(lr, 6))]
-                txt = "epoch:{} {}".format(epoch, '  '.join(result_info))
-                f.write(txt + "\n")
+            # with open(det_results_file, "a") as f:
+            #     # 记录coco的12个指标加上训练总损失和lr
+            #     result_info = [str(round(i, 4)) for i in result_info + [mloss.tolist()[-1]]] + [str(round(lr, 6))]
+            #     txt = "epoch:{} {}".format(epoch, '  '.join(result_info))
+            #     f.write(txt + "\n")
 
             # update best mAP(IoU=0.50:0.95)
-            if coco_mAP > best_map:
-                best_map = coco_mAP
+            # if coco_mAP > best_map:
+            #     best_map = coco_mAP
 
             if opt.savebest is False:
                 # save weights every epoch
-                with open(results_file, 'r') as f:
-                    save_files = {
-                        'model': model.state_dict(),
-                        'optimizer': optimizer.state_dict(),
-                        'training_results': f.read(),
-                        'epoch': epoch,
-                        'best_map': best_map}
-                    if opt.amp:
-                        save_files["scaler"] = scaler.state_dict()
-                    torch.save(save_files, "./weights/yolov3spp-{}.pt".format(epoch))
+                save_files = {
+                    'model': model.state_dict(),
+                    'epoch': epoch}
+                torch.save(save_files, "{}/yolov3spp-{}.pt".format(output_dir,epoch))
+                # with open(results_file, 'r') as f:
+                #     save_files = {
+                #         'model': model.state_dict(),
+                #         'optimizer': optimizer.state_dict(),
+                #         'training_results': f.read(),
+                #         'epoch': epoch,
+                #         'best_map': best_map}
+                #     if opt.amp:
+                #         save_files["scaler"] = scaler.state_dict()
+                #     torch.save(save_files, "{}/yolov3spp-{}.pt".format(output_dir,epoch))
             else:
                 # only save best weights
                 if best_map == coco_mAP:
@@ -276,16 +288,18 @@ def train(hyp):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--epochs', type=int, default=30)
+    parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--batch-size', type=int, default=2)
+    #指定输入图像尺寸
+    parser.add_argument('--img-size', type=tuple, default=(736,1280), help='test size')
+    #模型输出保存路径
+    parser.add_argument('--output-dir', default='/911G/EightModelOutputs/models/yolo_kp_736_1280_02', help='renames results.txt to results_name.txt if supplied')
     parser.add_argument('--cfg', type=str, default='cfg/my_yolov3.cfg', help="*.cfg path")
     parser.add_argument('--data', type=str, default='data/my_data.data', help='*.data path')
     parser.add_argument('--hyp', type=str, default='cfg/hyp.yaml', help='hyperparameters path')
     parser.add_argument('--multi-scale', type=bool, default=False,
                         help='adjust (67%% - 150%%) img_size every 10 batches')
-    #指定输入图像尺寸
-    parser.add_argument('--img-size', type=tuple, default=(736,1280), help='test size')
-
+    
     parser.add_argument('--rect', action='store_true', help='rectangular training')
     # parser.add_argument('--rect', default=True, help='rectangular training')
     parser.add_argument('--savebest', type=bool, default=False, help='only save best checkpoint')
@@ -296,6 +310,7 @@ if __name__ == '__main__':
     parser.add_argument('--weights', type=str, default='',
                         help='initial weights path')
     parser.add_argument('--name', default='', help='renames results.txt to results_name.txt if supplied')
+    
     parser.add_argument('--device', default='cuda:0', help='device id (i.e. 0 or 0,1 or cpu)')
     parser.add_argument('--single-cls', action='store_true', help='train as single-class dataset')
     parser.add_argument('--freeze-layers', type=bool, default=False, help='Freeze non-output layers')
@@ -313,5 +328,5 @@ if __name__ == '__main__':
         hyp = yaml.load(f, Loader=yaml.FullLoader)
 
     print('Start Tensorboard with "tensorboard --logdir=runs", view at http://localhost:6006/')
-    tb_writer = SummaryWriter(comment=opt.name)
+    tb_writer = SummaryWriter(log_dir = opt.output_dir,comment=opt.name)
     train(hyp)

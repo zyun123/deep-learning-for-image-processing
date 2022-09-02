@@ -83,13 +83,42 @@ def scale_coords(img1_shape, coords, img0_shape, ratio_pad=None):
     clip_coords(coords, img0_shape)
     return coords
 
-
 def clip_coords(boxes, img_shape):
     # Clip bounding xyxy bounding boxes to image shape (height, width)
     boxes[:, 0].clamp_(0, img_shape[1])  # x1
     boxes[:, 1].clamp_(0, img_shape[0])  # y1
     boxes[:, 2].clamp_(0, img_shape[1])  # x2
     boxes[:, 3].clamp_(0, img_shape[0])  # y2
+
+def scale_kp_coords(img1_shape, coords, img0_shape, ratio_pad=None):
+    """
+    将预测的坐标信息转换回原图尺度
+    :param img1_shape: 缩放后的图像尺度
+    :param coords: 预测的keypoint信息 shape(numkeypoints,3)
+    :param img0_shape: 缩放前的图像尺度
+    :param ratio_pad: 缩放过程中的缩放比例以及pad
+    :return:
+    """
+    # Rescale coords (xyxy) from img1_shape to img0_shape
+    if ratio_pad is None:  # calculate from img0_shape
+        gain = max(img1_shape) / max(img0_shape)  # gain  = old / new
+        pad = (img1_shape[1] - img0_shape[1] * gain) / 2, (img1_shape[0] - img0_shape[0] * gain) / 2  # wh padding
+    else:
+        gain = ratio_pad[0][0]
+        pad = ratio_pad[1]
+
+    coords[:, 0] -= pad[0]  # x padding
+    coords[:, 1] -= pad[1]  # y padding
+    coords[:, 0:2] /= gain
+    clip_kp_coords(coords, img0_shape)
+    return coords
+
+
+def clip_kp_coords(boxes, img_shape):
+    # Clip bounding xyxy bounding boxes to image shape (height, width)
+    boxes[:, 0].clamp_(0, img_shape[1])  # x1
+    boxes[:, 1].clamp_(0, img_shape[0])  # y1
+   
 
 
 def bbox_iou(box1, box2, x1y1x2y2=True, GIoU=False, DIoU=False, CIoU=False):

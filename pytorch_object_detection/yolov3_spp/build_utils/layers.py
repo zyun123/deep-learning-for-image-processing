@@ -63,12 +63,14 @@ class WeightedFeatureFusion(nn.Module):  # weighted sum of 2 or more layers http
 
             # Adjust channels
             # 根据相加的两个特征矩阵的channel选择相加方式
-            if nx == na:  # same shape 如果channel相同，直接相加
-                x = x + a
-            elif nx > na:  # slice input 如果channel不同，将channel多的特征矩阵砍掉部分channel保证相加的channel一致
-                x[:, :na] = x[:, :na] + a  # or a = nn.ZeroPad2d((0, 0, 0, 0, 0, dc))(a); x = x + a
-            else:  # slice feature
-                x = x + a[:, :nx]
+            # if nx == na:  # same shape 如果channel相同，直接相加
+            #     x = x + a
+            # elif nx > na:  # slice input 如果channel不同，将channel多的特征矩阵砍掉部分channel保证相加的channel一致
+            #     x[:, :na] = x[:, :na] + a  # or a = nn.ZeroPad2d((0, 0, 0, 0, 0, dc))(a); x = x + a
+            # else:  # slice feature
+            #     x = x + a[:, :nx]
+
+            x = x + a
 
         return x
 

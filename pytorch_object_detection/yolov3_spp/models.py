@@ -31,6 +31,17 @@ def create_modules(modules_defs: list, img_size):
             k = mdef["size"]  # kernel size
             stride = mdef["stride"] if "stride" in mdef else (mdef['stride_y'], mdef["stride_x"])
             if isinstance(k, int):
+                # conv2d = nn.Conv2d(in_channels=output_filters[-1],
+                #                                        out_channels=filters,
+                #                                        kernel_size=k,
+                #                                        stride=stride,
+                #                                        padding=k // 2 if mdef["pad"] else 0,
+                #                                        bias=not bn)
+                # nn.init.kaiming_uniform_(conv2d.weight, a=1)
+                # nn.init.kaiming_normal_(conv2d.weight, mode="fan_out", nonlinearity="relu")
+
+                # nn.init.constant_(conv2d.bias, 0)
+                # modules.add_module("Conv2d",conv2d)
                 modules.add_module("Conv2d", nn.Conv2d(in_channels=output_filters[-1],
                                                        out_channels=filters,
                                                        kernel_size=k,
@@ -122,7 +133,8 @@ class YOLOLayer(nn.Module):
         self.stride = stride  # layer stride 特征图上一步对应原图上的步距 [32, 16, 8]
         self.na = len(anchors)  # number of anchors (3)
         self.nc = nc  # number of classes (80)
-        self.no = nc + 5 +56  # number of outputs (85: x, y, w, h, obj, cls1, ...)
+        self.num_kps = 56
+        self.no = nc + 5 +self.num_kps  # number of outputs (85: x, y, w, h, obj, cls1, ...)
         self.nx, self.ny, self.ng = 0, 0, (0, 0)  # initialize number of x, y gridpoints
         # 将anchors大小缩放到grid尺度
         self.anchor_vec = self.anchors / self.stride
@@ -177,19 +189,24 @@ class YOLOLayer(nn.Module):
             # Avoid broadcasting for ANE operations
             m = self.na * self.nx * self.ny  # 3*
             ng = 1. / self.ng.repeat(m, 1)
+            # ng = self.ng.repeat(m, 1)
             grid = self.grid.repeat(1, self.na, 1, 1, 1).view(m, 2)
             anchor_wh = self.anchor_wh.repeat(1, 1, self.nx, self.ny, 1).view(m, 2) * ng
 
-            p = p.view(m, self.no)
+            # p = p1.view(m, self.no)
+            p = p1.view(m, self.nc+5)
             # xy = torch.sigmoid(p[:, 0:2]) + grid  # x, y
             # wh = torch.exp(p[:, 2:4]) * anchor_wh  # width, height
             # p_cls = torch.sigmoid(p[:, 4:5]) if self.nc == 1 else \
             #     torch.sigmoid(p[:, 5:self.no]) * torch.sigmoid(p[:, 4:5])  # conf
+
             p[:, :2] = (torch.sigmoid(p[:, 0:2]) + grid) * ng  # x, y
+
             p[:, 2:4] = torch.exp(p[:, 2:4]) * anchor_wh  # width, height
             p[:, 4:] = torch.sigmoid(p[:, 4:])
-            p[:, 5:] = p[:, 5:self.no] * p[:, 4:5]
-            return p
+            # p[:, 5:] = p[:, 5:self.no] * p[:, 4:5]
+            p[:, 5:] = p[:, 5:self.nc+5] * p[:, 4:5]
+            return p,p2
         else:  # inference
             # [bs, anchor, grid, grid, xywh + obj + classes]
             io = p1.clone()  # inference output
@@ -198,7 +215,7 @@ class YOLOLayer(nn.Module):
             io[..., :4] *= self.stride  # 换算映射回原图尺度
             torch.sigmoid_(io[..., 4:])
             # p2 = p2.permute(0,3,1,2).contiguous()
-            kp_logits = F.interpolate(p2,size =(int(self.ny*self.stride),int(self.nx*self.stride)),mode="bilinear",align_corners=False)
+            kp_logits = F.interpolate(p2,size =(int(self.ny*self.stride),int(self.nx*self.stride)),mode="bicubic",align_corners=False)
             return io.view(bs, -1, self.nc+5), p1,kp_logits  # view [1, 3, 13, 13, 85] as [1, 507, 85]
 
 
@@ -241,8 +258,13 @@ class Darknet(nn.Module):
                 x = module(x, out)  # WeightedFeatureFusion(), FeatureConcat()
             elif name == "YOLOLayer":
                 module_out = module(x)
-                yolo_out.append(module_out[0])
-                kp_out.append(module_out[1])
+                if len(module_out) == 2:
+                    yolo_out.append(module_out[0])
+                    kp_out.append(module_out[1])
+                else:
+                    yolo_out.append(module_out)
+                
+
             else:  # run module directly, i.e. mtype = 'convolutional', 'upsample', 'maxpool', 'batchnorm2d' etc.
                 x = module(x)
 
@@ -256,7 +278,8 @@ class Darknet(nn.Module):
         elif ONNX_EXPORT:  # export
             # x = [torch.cat(x, 0) for x in zip(*yolo_out)]
             # return x[0], torch.cat(x[1:3], 1)  # scores, boxes: 3780x80, 3780x4
-            p = torch.cat(yolo_out, dim=0)
+            p1 = torch.cat(yolo_out, dim=0)
+            p2 = torch.cat(kp_out, dim=0)
 
             # # 根据objectness虑除低概率目标
             # mask = torch.nonzero(torch.gt(p[:, 4], 0.1), as_tuple=False).squeeze(1)
@@ -273,7 +296,7 @@ class Darknet(nn.Module):
             # if mask_s.numel() == 0:
             #     return torch.empty([0, 85])
 
-            return p
+            return p1,p2
         else:  # inference or test
             x, p ,kp_logits= zip(*yolo_out)  # inference output, training output
             x = torch.cat(x, 1)  # cat yolo outputs

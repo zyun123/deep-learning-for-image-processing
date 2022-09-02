@@ -37,16 +37,16 @@ def convert_to_coco_api(ds):
             keypoints = obj[5:]
             keypoints[::3] *=img_dict["width"]
             keypoints[1::3] *=img_dict["height"]
-            keypoints = keypoints.view(-1,3)
+            ann["num_keypoints"] = int(keypoints.shape[0]/3)
+            keypoints = keypoints.tolist()
             ann["keypoints"] = keypoints
-            ann["num_keypoints"] = keypoints.shape[0]
-
             ann["bbox"] = boxes
             ann["category_id"] = int(obj[0])
             categories.add(int(obj[0]))
             ann["area"] = boxes[2] * boxes[3]
             ann["iscrowd"] = 0
             ann["id"] = ann_id
+            
             dataset["annotations"].append(ann)
             ann_id += 1
 

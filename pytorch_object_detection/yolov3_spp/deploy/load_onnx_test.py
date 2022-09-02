@@ -4,7 +4,7 @@ import onnx
 import onnxruntime
 import numpy as np
 from matplotlib import pyplot as plt
-from draw_box_utils import draw_box
+# from draw_box_utils import draw_box
 
 
 def to_numpy(tensor):
@@ -200,15 +200,15 @@ def post_process(pred: np.ndarray, multi_label=False, conf_thres=0.3):
 
 def main():
     img_size = 512
-    save_path = "yolov3spp.onnx"
-    img_path = "test.jpg"
-    input_size = (img_size, img_size)  # h, w
+    save_path = "./onnx_export_weight/yolov3spp_kp.onnx"
+    img_path = "000001.jpg"
+    input_size = (736, 1280)  # h, w
 
     # check onnx model
     onnx_model = onnx.load(save_path)
     onnx.checker.check_model(onnx_model)
     # print(onnx.helper.printable_graph(onnx_model.graph))
-    ort_session = onnxruntime.InferenceSession(save_path)
+    ort_session = onnxruntime.InferenceSession(save_path,providers=['CPUExecutionProvider'])
 
     img_o = cv2.imread(img_path)  # BGR
     assert img_o is not None, "Image Not Found " + img_path
@@ -227,9 +227,10 @@ def main():
 
     t1 = time.time()
     # prediction: [num_obj, 85]
-    pred = ort_session.run(None, ort_inputs)[0]
+    for i in range(100):
+        pred = ort_session.run(None, ort_inputs)[0]
     t2 = time.time()
-    print(t2 - t1)
+    print("onnx run use time : *****",t2 - t1)
     # print(predictions.shape[0])
     # process detections
     # 这里预测的数值是相对坐标(0-1之间)，乘上图像尺寸转回绝对坐标
