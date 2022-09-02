@@ -68,15 +68,15 @@ if __name__ == '__main__':
                 if "keypoints" in annotation:
                     # keypoints = [round(x,3) for x in annotation['keypoints']]
                     keypoints = annotation['keypoints']
-                for i,kp in enumerate(keypoints):
-                    if i %3 ==0:
-                        lines += ' ' + str(round(kp/width,6))
-                    elif i%3 == 1:
-                        lines += ' ' + str(round(kp/height,6))
-                    else:
-                        lines += ' ' + str(kp)
+                    for i,kp in enumerate(keypoints):
+                        if i %3 ==0:
+                            lines += ' ' + str(round(kp/width,6))
+                        elif i%3 == 1:
+                            lines += ' ' + str(round(kp/height,6))
+                        else:
+                            lines += ' ' + str(kp)
 
 
-                lines += '\n'
+                    lines += '\n'
             fp.writelines(lines)
     print('finish')
