@@ -477,3 +477,7 @@ def kmean_anchors(path='./data/coco64.txt', n=9, img_size=(640, 640), thr=0.20, 
     k = print_results(k)
 
     return k
+
+
+if __name__ == '__main__':
+    kmean_anchors("data/my_train_data.txt",img_size=(512, 512))

@@ -242,13 +242,13 @@ def train(hyp):
                 with open(results_file, 'r') as f:
                     save_files = {
                         'model': model.state_dict(),
-                        'optimizer': optimizer.state_dict(),
-                        'training_results': f.read(),
-                        'epoch': epoch,
+                        # 'optimizer': optimizer.state_dict(),
+                        # 'training_results': f.read(),
+                        # 'epoch': epoch,
                         'best_map': best_map}
                     if opt.amp:
                         save_files["scaler"] = scaler.state_dict()
-                    torch.save(save_files, "./weights/yolov3spp-{}.pt".format(epoch))
+                    torch.save(save_files, "/911G/EightModelOutputs/models/harhat_512_512_02/yolov3spp-{}.pt".format(epoch))
             else:
                 # only save best weights
                 if best_map == coco_mAP:
@@ -266,8 +266,8 @@ def train(hyp):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--epochs', type=int, default=30)
-    parser.add_argument('--batch-size', type=int, default=2)
+    parser.add_argument('--epochs', type=int, default=200)
+    parser.add_argument('--batch-size', type=int, default=8)
     parser.add_argument('--cfg', type=str, default='cfg/my_yolov3.cfg', help="*.cfg path")
     parser.add_argument('--data', type=str, default='data/my_data.data', help='*.data path')
     parser.add_argument('--hyp', type=str, default='cfg/hyp.yaml', help='hyperparameters path')
@@ -298,5 +298,5 @@ if __name__ == '__main__':
         hyp = yaml.load(f, Loader=yaml.FullLoader)
 
     print('Start Tensorboard with "tensorboard --logdir=runs", view at http://localhost:6006/')
-    tb_writer = SummaryWriter(comment=opt.name)
+    tb_writer = SummaryWriter(log_dir="/911G/EightModelOutputs/models/harhat_512_512",comment=opt.name)
     train(hyp)
