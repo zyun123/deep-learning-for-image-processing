@@ -4,7 +4,7 @@ from models import *
 #from utils.utils import *
 import torch
 model = Darknet('cfg/my_yolov3.cfg', (512, 512))
-weights = "/911G/EightModelOutputs/models/harhat_512_512_02/yolov3spp-154.pt"
+weights = "/911G/EightModelOutputs/models/harhat_512_512/yolov3spp-149.pt"
 # weights = sys.argv[1]
 # dev = '0'
 # device = torch_utils.select_device(dev)
