@@ -13,14 +13,13 @@ def main():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     data_transform = transforms.Compose(
-        [transforms.Resize(224),
-        #  transforms.CenterCrop(224),
+        [transforms.Resize(256),
+         transforms.CenterCrop(224),
          transforms.ToTensor(),
-        #  transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        ])
+         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
 
     # load image
-    img_path = "/home/zy/vision/deep-learning-for-image-processing/pytorch_classification/Test5_resnet/images/2022_3_16_16_53_16_camera0.jpg"
+    img_path = "../tulip.jpg"
     assert os.path.exists(img_path), "file: '{}' dose not exist.".format(img_path)
     img = Image.open(img_path)
     plt.imshow(img)
@@ -37,7 +36,7 @@ def main():
         class_indict = json.load(f)
 
     # create model
-    model = resnet34(num_classes=2).to(device)
+    model = resnet34(num_classes=5).to(device)
 
     # load model weights
     weights_path = "./resNet34.pth"
@@ -45,11 +44,10 @@ def main():
     model.load_state_dict(torch.load(weights_path, map_location=device))
 
     # prediction
-    # model.eval()
+    model.eval()
     with torch.no_grad():
         # predict class
         output = torch.squeeze(model(img.to(device))).cpu()
-        print("output:{}".format(output))
         predict = torch.softmax(output, dim=0)
         predict_cla = torch.argmax(predict).numpy()
 
@@ -60,7 +58,6 @@ def main():
         print("class: {:10}   prob: {:.3}".format(class_indict[str(i)],
                                                   predict[i].numpy()))
     plt.show()
-    print("predict done")
 
 
 if __name__ == '__main__':
