@@ -52,16 +52,22 @@ int main(int argc,char** argv){
         std::cerr << "error loading the model\n";
         return -1;
     }
-
+    std::cout << "ok\n";
     std::string path = "../class_indices.txt";
     std::vector<std::string> clas;
     readTxt(path,clas);
     std::cout << "vector clas: " << clas <<std::endl;
- 
+    //create a vector of inputs 
+    // std::vector<torch::jit::IValue> inputs;
+    // inputs.push_back(torch::ones({1,3,224,224}));
+    //读取文件下所有的图片
+    // std::string img_dir = "/911G/data/person_cls/test_images";
     std::string img_dir = "/home/zy/vision/deep-learning-for-image-processing/pytorch_classification/Test5_resnet/images";
     std::vector<cv::String> img_lists;
     cv::glob(img_dir,img_lists,true);
-
+    // torch::jit::getBailoutDepth() = 1;
+    // torch::autograd::AutoGradMode guard(false);
+    // static const int count = 1;
     for(auto name:img_lists){
         std::cout << name << std::endl;
         cv::Mat src = cv::imread(name);
@@ -72,11 +78,15 @@ int main(int argc,char** argv){
         int dst_size = 224;
         float ratio_h = h*1.0/dst_size;
         cv::resize(src,src,cv::Size(floor(w*1.0/ratio_h),dst_size));
+
+
+
         // cv::resize(src,src,cv::Size(224,224));
         // src.convertTo(src,CV_32F);
         // src = src/255.0;
         // cv::subtract(src,cv::Scalar(0.485, 0.456, 0.406),src);
         // cv::divide(src,cv::Scalar(0.229, 0.224, 0.225),src);
+        
         // std::vector<torch::jit::IValue> inputs;
         const int channels = src.channels(),height = src.rows,width = src.cols;
         std::cout << "height: " << height << "width: " << width << "channels: " << channels << std::endl;

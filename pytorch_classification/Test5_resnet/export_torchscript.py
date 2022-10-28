@@ -13,8 +13,8 @@ inputs = torch.rand(1,3,224,224)
 
 # torch_script_module = torch.jit.trace(model,inputs)
 
-data_transform = transforms.Compose(
-        [transforms.Resize(224),
+data_transform = transforms.Compose([
+        transforms.Resize(224),
         #  transforms.CenterCrop(224),
          transforms.ToTensor(),
         #  transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
@@ -31,10 +31,10 @@ img = torch.unsqueeze(img, dim=0)
 model.eval()
 # model.to(device)
 with torch.no_grad():
-    torch_script_module = torch.jit.trace(model,img)
+    torch_script_module = torch.jit.trace(model,inputs)
 
-    # output = torch_script_module(img)
-    output = torch_script_module(torch.ones(1,3,224,224))
+    output = torch_script_module(img)
+    # output = torch_script_module(torch.ones(1,3,224,224))
     output2 = torch.softmax(torch.squeeze(output).cpu(),dim=0)
     print("output: ",output)
     print("output2: ",output2)
