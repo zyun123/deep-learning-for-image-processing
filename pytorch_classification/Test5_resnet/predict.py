@@ -76,7 +76,7 @@ def main():
 
 
     #use multi images to predict
-    img_list=  glob.glob("images/*.jpg")
+    img_list=  glob.glob("/home/zy/Downloads/middle_down_wai_20221207161938168等2个文件/*.jpg")
     for img_path in img_list:
         print("-"*30)
         print(img_path)
