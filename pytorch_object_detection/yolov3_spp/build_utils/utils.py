@@ -340,7 +340,7 @@ def build_targets(p, targets, model):
     # Build targets for compute_loss(), input targets(image_idx,class,x,y,w,h)
     nt = targets.shape[0]   #目标个数
     tcls, tbox,tkeypoints,indices, anch = [], [], [], [], []
-    gain = torch.ones(174, device=targets.device)  # normalized to gridspace gain
+    gain = torch.ones(174, device=targets.device)  # normalized to gridspace gain  56*3+6  主要是對label進行處理
 
     multi_gpu = type(model) in (nn.parallel.DataParallel, nn.parallel.DistributedDataParallel)
     for i, j in enumerate(model.yolo_layers):  # j: [89, 101, 113]

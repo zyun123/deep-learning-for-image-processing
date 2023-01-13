@@ -11,7 +11,7 @@ from PIL import Image
 from build_utils import img_utils, torch_utils, utils
 from models import Darknet
 from draw_box_utils import draw_objs
-
+from keypoints_names import *
 
 def main():
     img_size = 512  # 必须是32的整数倍 [416, 512, 608]
@@ -45,6 +45,10 @@ def main():
         # init
         img = torch.zeros((1, 3, 736,1280), device=device)
         model(img)
+
+
+        
+
 
         img_o = cv2.imread(img_path)  # BGR
         assert img_o is not None, "Image Not Found " + img_path
@@ -86,6 +90,7 @@ def main():
             pt2_x = int(box[2])
             pt2_y = int(box[3])
             cv2.rectangle(img_o,(pt1_x,pt1_y),(pt2_x,pt2_y),(255,0,0),2,8)
+            cv2.putText(img_o,"person",(pt1_x,pt1_y),cv2.FONT_HERSHEY_COMPLEX,1,(0,255,0),1,8)
 
 
 
@@ -108,14 +113,32 @@ def main():
 
         xy_preds = utils.scale_kp_coords(img.shape[2:], xy_preds, img_o.shape).round()
         
+        visible = {}
+
+
         
-        
+        #middle_down_wai
+        kp_names = COCO_PERSON_KEYPOINT_NAMES_DOWN + COCO_PERSON_KEYPOINT_NAMES_HEAD_MIDDLE_DOWN
+        keypoint_color_rules = KEYPOINT_CONNECTION_RULES_WHOLE_DOWN
         for i in range(len(xy_preds)):
             x = int(xy_preds[i][0])
             y = int(xy_preds[i][1])
+            kp_name = kp_names[i]
+            visible[kp_name] = (x,y)
             score = xy_preds[i][2]
             cv2.circle(img_o,(x,y),2,(0,0,255),-1,8)
+            cv2.putText(img_o,str(int(score)),(x,y),cv2.FONT_HERSHEY_COMPLEX,0.5,(255,0,255),1,8)
         
+        for kp0,kp1,color in keypoint_color_rules:
+            if kp0 in visible and kp1 in visible:
+                x0, y0 = visible[kp0]
+                x1, y1 = visible[kp1]
+                # color = tuple(x / 255.0 for x in color)
+                cv2.line(img_o,(x0,y0),(x1,y1),color,1,8)
+
+
+
+
         cv2.imshow("kp_img",img_o)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
