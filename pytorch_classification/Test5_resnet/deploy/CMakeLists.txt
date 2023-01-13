@@ -8,6 +8,6 @@ find_package(TorchVision REQUIRED)
 
 add_executable(resnet resnet18.cpp)
 
-target_link_libraries(resnet "${TORCH_LIBRARIES}" TorchVision::TorchVision)
+target_link_libraries(resnet "${TORCH_LIBRARIES}" "${OpenCV_LIBRARIES}" TorchVision::TorchVision)
 
 set_property(TARGET resnet PROPERTY CXX_STANDARD 14 )

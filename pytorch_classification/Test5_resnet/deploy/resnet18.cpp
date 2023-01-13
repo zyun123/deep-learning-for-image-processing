@@ -110,8 +110,8 @@ int main(int argc,char** argv){
         // std::cout << "predict image perosn pose:" << clas[max_index] << std::endl;
         cv::putText(copy_img,clas[max_index].c_str(),cv::Point(50,50),cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(0, 0, 255), 2, 8);
         cv::imshow("src",copy_img);
-        cv::waitKey(1);
-        // cv::destroyAllWindows();
+        cv::waitKey(0);
+        cv::destroyAllWindows();
     }
     // cv::destroyAllWindows();
 

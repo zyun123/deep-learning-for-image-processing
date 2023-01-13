@@ -20,7 +20,7 @@ data_transform = transforms.Compose([
         #  transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
          ])
 # load image
-img_path = "/home/zy/vision/deep-learning-for-image-processing/pytorch_classification/Test5_resnet/images/2022_3_16_16_53_16_camera0.jpg"
+img_path = "images/middle_down_wai_20230113133716830.jpg"
 assert os.path.exists(img_path), "file: '{}' dose not exist.".format(img_path)
 img = Image.open(img_path)
 
