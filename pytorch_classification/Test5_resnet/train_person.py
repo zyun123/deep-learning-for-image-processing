@@ -17,14 +17,15 @@ def main():
 
     data_transform = {
         "train": transforms.Compose([
-                                     transforms.RandomResizedCrop(224),
+                                    #  transforms.RandomResizedCrop(224),
                                     #  transforms.Resize(224),
                                      transforms.RandomHorizontalFlip(),
                                      transforms.ToTensor(),
+                                     transforms.ColorJitter(brightness=0.3,contrast=0.2,saturation=0.2)
                                     #  transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
                                      ]),
         "val": transforms.Compose([
-                                    transforms.Resize(224),
+                                    # transforms.Resize(224),
                                 #    transforms.CenterCrop(224),
                                    transforms.ToTensor(),
                                 #    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
@@ -45,7 +46,7 @@ def main():
     with open('class_indices.json', 'w') as json_file:
         json_file.write(json_str)
 
-    batch_size = 32
+    batch_size = 4
     nw = min([os.cpu_count(), batch_size if batch_size > 1 else 0, 8])  # number of workers
     print('Using {} dataloader workers every process'.format(nw))
 
@@ -87,7 +88,7 @@ def main():
     epochs = 100
     best_acc = 0.0
     best_loss = 0.0
-    save_path = './resNet34.pth'
+    save_path = './resNetfinal.pth'
     train_steps = len(train_loader)
     for epoch in range(epochs):
         # train
@@ -129,7 +130,7 @@ def main():
               (epoch + 1, running_loss / train_steps, val_accurate))
         torch.save(net.state_dict(), "weights/epoch_{}.pth".format(epoch))
         train_loss = running_loss / train_steps
-        if val_accurate >= best_acc and train_loss >= best_loss:
+        if val_accurate >= best_acc and train_loss < best_loss:
             best_acc = val_accurate
             best_loss = train_loss
             torch.save(net.state_dict(), save_path)

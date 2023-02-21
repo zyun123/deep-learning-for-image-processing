@@ -2,7 +2,7 @@ import numpy as np
 
 
 def wh_iou(wh1, wh2):
-    # Returns the nxm IoU matrix. wh1 is nx2, wh2 is mx2
+    # Returns the nxm IoU matrix. wh1 is nx2, wh2 is mx2        wh_iou 默认是所有的框左上角对齐
     wh1 = wh1[:, None]  # [N,1,2]
     wh2 = wh2[None]  # [1,M,2]
     inter = np.minimum(wh1, wh2).prod(2)  # [N,M]
@@ -22,7 +22,7 @@ def k_means(boxes, k, dist=np.median):
     last_nearest = np.zeros((box_number,))
     # np.random.seed(0)  # 固定随机数种子
 
-    # init k clusters
+    # init k clusters 初始随机的簇中心
     clusters = boxes[np.random.choice(box_number, k, replace=False)]
 
     while True:

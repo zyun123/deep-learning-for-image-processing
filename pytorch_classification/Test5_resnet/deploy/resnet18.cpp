@@ -1,4 +1,5 @@
 #include <torch/script.h>
+// #include <torch/nn/functional/interpolate.h>
 #include<iostream>
 // #include<fstream>
 // #include<string>
@@ -36,7 +37,9 @@ std::vector<float> softmax(std::vector<float> &input){
     return result;
 }
 
-
+// torch::Tensor Resize(torch::Tensor &input, const std::vector<int64_t>& size, InterpolationAlgorithm interpolation){
+//     return torch::nn::functional::interpolate(input, size, interpolation)
+// }
 
 int main(int argc,char** argv){
     if (argc !=2){
@@ -53,45 +56,53 @@ int main(int argc,char** argv){
         return -1;
     }
 
-    std::string path = "../class_indices.txt";
+    std::string path = "/home/zy/vision/deep-learning-for-image-processing/pytorch_classification/Test5_resnet/class_indices.txt";
     std::vector<std::string> clas;
     readTxt(path,clas);
     std::cout << "vector clas: " << clas <<std::endl;
  
-    std::string img_dir = "/home/zy/vision/deep-learning-for-image-processing/pytorch_classification/Test5_resnet/images";
+    std::string img_dir = "/911G/newimage/zhengfan_err";
     std::vector<cv::String> img_lists;
     cv::glob(img_dir,img_lists,true);
 
     for(auto name:img_lists){
         std::cout << name << std::endl;
         cv::Mat src = cv::imread(name);
-        cv::Mat copy_img = src.clone();
         cv::cvtColor(src,src,cv::COLOR_BGR2RGB);
-
-        const int h = src.rows, w = src.cols;
-        int dst_size = 224;
-        float ratio_h = h*1.0/dst_size;
-        cv::resize(src,src,cv::Size(floor(w*1.0/ratio_h),dst_size));
+        //等比例缩放
+        // const int h = src.rows, w = src.cols;
+        // int dst_size = 224;
+        // float ratio_h = h*1.0/dst_size;
+        // cv::resize(src,src,cv::Size(floor(w*1.0/ratio_h),dst_size));
         // cv::resize(src,src,cv::Size(224,224));
-        // src.convertTo(src,CV_32F);
-        // src = src/255.0;
+ 
+        // 均值和方差
         // cv::subtract(src,cv::Scalar(0.485, 0.456, 0.406),src);
         // cv::divide(src,cv::Scalar(0.229, 0.224, 0.225),src);
-        // std::vector<torch::jit::IValue> inputs;
+
         const int channels = src.channels(),height = src.rows,width = src.cols;
         std::cout << "height: " << height << "width: " << width << "channels: " << channels << std::endl;
-        auto input = torch::from_blob(src.data,{1,height,width,channels},torch::kUInt8);
+    
+        src.convertTo(src,CV_32FC3,1.0/255,0);
+        // auto input = torch::from_blob(src.data,{1,height,width,channels},torch::kUInt8);
+        auto input = torch::from_blob(src.data,{1,height,width,channels}).toType(torch::kFloat32);
 
         // input = input.permute({0,3,1,2}).contiguous();
-        input = input.permute({0,3,1,2}).contiguous();
-        input = input.div(255);
-        // std::cout << input << std::endl;
-        // auto input1 = torch::ones({1,3,224,224});
-        // std::cout << input1 <<std::endl;
-        // std::cout << input << std::endl;
-        // inputs.push_back(input);
+        input = input.permute({0,3,1,2});
         auto output = module.forward({input}).toTensor();
         std::cout << "output: " <<output << std::endl;
+
+        //获取最大值和最大值索引
+        // auto max_classes = torch::max(output,1);
+        // at::Tensor max_value = std::get<0>(max_classes);
+        // at::Tensor max_index = std::get<1>(max_classes);
+        // std::cout << "max_value:" << max_value << std::endl;
+        // std::cout << "max_index:" << max_index << std::endl;
+
+        // torch::Tensor normalized_output = output - max_value;
+        // // torch::softmax有问题
+        // torch::Tensor softmax_out = torch::softmax(normalized_output);
+        // std::cout << "softmax out:" <<softmax_out << std::endl;
 
         std::vector<float> output2(output.data_ptr<float>(),output.data_ptr<float>()+output.numel());
         std::vector<float> softmax_out;
@@ -108,38 +119,21 @@ int main(int argc,char** argv){
         std::cout <<"softmax_out: " << softmax_out<<std::endl;
         // std::cout << "max_index: " << max_index<<std::endl;
         // std::cout << "predict image perosn pose:" << clas[max_index] << std::endl;
-        cv::putText(copy_img,clas[max_index].c_str(),cv::Point(50,50),cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(0, 0, 255), 2, 8);
-        cv::imshow("src",copy_img);
+        std::string pose ="pose:"+ clas[max_index];
+        std::string confidence ="confidence:"+ std::to_string(final_max);
+        
+        cv::putText(src,pose,cv::Point(50,50),cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(0, 0, 255), 2, 8);
+        cv::putText(src,confidence,cv::Point(50,90),cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(0, 0, 255), 2, 8);
+        cv::imshow("src",src);
         cv::waitKey(0);
         cv::destroyAllWindows();
     }
-    // cv::destroyAllWindows();
-
-
 
     // // inputs.to(at::kCUDA);
     // //execute the model and turn its output into a tensor
     // at::Tensor output = module.forward(inputs).toTensor();
     // //将at::Tensor 转成vector
-    // std::vector<float> output2(output.data_ptr<float>(),output.data_ptr<float>()+output.numel());
-    // //softmax
-    // std::vector<float> softmax_out;
-    // softmax_out = softmax(output2);
-    // // auto predict = softmax(output);
-    // // auto predict_cla = torch::argmax(predict);
-    // // std::cout << "predict_cla:  " << predict_cla << std::endl;
-
-    // float final_max = 0;
-    // int max_index = 0;
-    // for (int i = 0;i<softmax_out.size();i++){
-    //     if(softmax_out[i] >final_max){
-    //         final_max = softmax_out[i];
-    //         max_index = i;
-    //     }     
-    // }
     // // std::cout<< output.slice(/*dim=*/0,/*start=*/0,/*end=*/10);
     // std::cout << sizeof(output.data_ptr())/sizeof(float)<<std::endl;
-    // std::cout << softmax_out<<std::endl;
-    // std::cout << final_max<<std::endl;
     // std::cout << max_index<<std::endl;
 }

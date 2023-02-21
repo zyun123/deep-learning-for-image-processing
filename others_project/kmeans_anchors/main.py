@@ -19,7 +19,7 @@ def anchor_fitness(k: np.ndarray, wh: np.ndarray, thr: float):  # mutation fitne
 
 def main(img_size=512, n=9, thr=0.25, gen=1000):
     # 从数据集中读取所有图片的wh以及对应bboxes的wh
-    dataset = VOCDataSet(voc_root="/data", year="2012", txt_name="train.txt")
+    dataset = VOCDataSet(voc_root="/911G/data", year="2012", txt_name="train.txt")
     im_wh, boxes_wh = dataset.get_info()
 
     # 最大边缩放到img_size

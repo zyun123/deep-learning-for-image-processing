@@ -14,7 +14,7 @@ def main():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     data_transform = transforms.Compose([
-        transforms.Resize(224),
+        # transforms.Resize(224),
         #  transforms.CenterCrop(224),
          transforms.ToTensor(),
         #  transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
@@ -76,7 +76,8 @@ def main():
 
 
     #use multi images to predict
-    img_list=  glob.glob("/911G/data/识别错误的图片/正反识别错误/pic-0113/*.jpg")
+    # img_list=  glob.glob("/911G/newimage/zhengfan_err/*.jpg")
+    img_list=  glob.glob("/911G/newimage/zhengfan_err/*.jpg")
     for img_path in img_list:
         print("-"*30)
         print(img_path)
@@ -87,6 +88,7 @@ def main():
         img = data_transform(img)
         # expand batch dimension
         img = torch.unsqueeze(img, dim=0)
+        print("transform image shape:",img.shape)
 
         # read class_indict
         json_path = './class_indices.json'
@@ -99,7 +101,7 @@ def main():
         model = resnet34(num_classes=2).to(device)
 
         # load model weights
-        weights_path = "./resNet34.pth"
+        weights_path = "./resNetfinal.pth"
         assert os.path.exists(weights_path), "file: '{}' dose not exist.".format(weights_path)
         model.load_state_dict(torch.load(weights_path, map_location=device))
 
@@ -110,6 +112,7 @@ def main():
             output = torch.squeeze(model(img.to(device))).cpu()
             print("output:{}".format(output))
             predict = torch.softmax(output, dim=0)
+            print("softmax output:{}".format(predict))
             predict_cla = torch.argmax(predict).numpy()
         # print("cla index:  {}".format(predict_cla))
         print("softmax output",predict)
