@@ -38,7 +38,7 @@ def main():
     model = create_model(num_classes=20)
 
     # load train weights
-    weights_path = "./save_weights/model.pth"
+    weights_path = "./save_weights/retinanet_voc_weights.pth"
     assert os.path.exists(weights_path), "{} file dose not exist.".format(weights_path)
     model.load_state_dict(torch.load(weights_path, map_location='cpu')["model"])
     model.to(device)
@@ -52,7 +52,7 @@ def main():
     category_index = {str(v): str(k) for k, v in class_dict.items()}
 
     # load image
-    original_img = Image.open("./test.jpg")
+    original_img = Image.open("./2007_000392.jpg")
 
     # from pil image to tensor, do not normalize image
     data_transform = transforms.Compose([transforms.ToTensor()])

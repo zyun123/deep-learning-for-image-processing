@@ -516,7 +516,7 @@ class RetinaNet(nn.Module):
             for v in num_anchors_per_level:
                 HW += v
             HWA = head_outputs["cls_logits"].size(1)
-            A = HWA // HW
+            A = HWA // HW #anchor 的数量
             num_anchors_per_level = [hw * A for hw in num_anchors_per_level]
 
             # split outputs per level
