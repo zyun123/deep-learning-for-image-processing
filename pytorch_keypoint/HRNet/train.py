@@ -57,10 +57,11 @@ def main(args):
 
     data_transform = {
         "train": transforms.Compose([
-            # transforms.HalfBody(0.3, person_kps_info["upper_body_ids"], person_kps_info["lower_body_ids"]),
-            transforms.AffineTransform(rotation=(-5, 5), fixed_size=fixed_size),
+            transforms.HalfBody(0.3, person_kps_info["upper_body_ids"], person_kps_info["lower_body_ids"]),
+            transforms.AffineTransform(rotation=(-45, 45), fixed_size=fixed_size),
             # transforms.RandomHorizontalFlip(0.5, person_kps_info["flip_pairs"]),
             transforms.KeypointToHeatMap(heatmap_hw=heatmap_hw, gaussian_sigma=2, keypoints_weights=kps_weights),
+            # transforms.KeypointToHeatMap(heatmap_hw=heatmap_hw, gaussian_sigma=2),
             # transforms.RcnnKeypointToHeatmap(heatmap_hw=heatmap_hw,keypoints_weights=kps_weights),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.596, 0.575, 0.554], std=[0.096,0.118,0.169])
@@ -135,15 +136,15 @@ def main(args):
 
     for epoch in range(args.start_epoch, args.epochs):
         # train for one epoch, printing every 50 iterations
-        # mean_loss, lr = utils.train_one_epoch(model, optimizer, train_data_loader,
-        #                                       device=device, epoch=epoch,
-        #                                       print_freq=50, warmup=True,
-        #                                       scaler=scaler)
-        # train_loss.append(mean_loss.item())
-        # learning_rate.append(lr)
+        mean_loss, lr = utils.train_one_epoch(model, optimizer, train_data_loader,
+                                              device=device, epoch=epoch,
+                                              print_freq=50, warmup=True,
+                                              scaler=scaler)
+        train_loss.append(mean_loss.item())
+        learning_rate.append(lr)
 
-        # # update the learning rate
-        # lr_scheduler.step()
+        # update the learning rate
+        lr_scheduler.step()
 
         # evaluate on the test dataset
         # coco_info = utils.evaluate(model, val_data_set_loader, device=device,
@@ -192,26 +193,27 @@ if __name__ == "__main__":
     # 训练设备类型
     parser.add_argument('--device', default='cuda:0', help='device')
     # 训练数据集的根目录(coco2017)
-    parser.add_argument('--data-path', default='/911G/data/semi_care_data/middle_down_wai/whole', help='dataset')
+    parser.add_argument('--data-path', default='/911G/data/temp/20221229新加手托脚托新数据/20230311_最新修改/middle_up_nei', help='dataset')
     # COCO数据集人体关键点信息
     parser.add_argument('--keypoints-path', default="./person_keypoints.json", type=str,
                         help='person_keypoints.json path')
     # 原项目提供的验证集person检测信息，如果要使用GT信息，直接将该参数置为None，建议设置成None
     parser.add_argument('--person-det', type=str, default=None)
+    # parser.add_argument('--fixed-size', default=[1024,512], nargs='+', type=int, help='input size')
     parser.add_argument('--fixed-size', default=[384,640], nargs='+', type=int, help='input size')
     # keypoints点数
-    parser.add_argument('--num-joints', default=56, type=int, help='num_joints')
+    parser.add_argument('--num-joints', default=74, type=int, help='num_joints')
     # 文件保存地址
-    parser.add_argument('--output-dir', default='/911G/EightModelOutputs/models/hrnet_384_640_use_mse_03', help='path where to save')
+    parser.add_argument('--output-dir', default='/911G/EightModelOutputs/models/hrnet_384_640_20230329', help='path where to save')
     # 若需要接着上次训练，则指定上次训练保存权重文件地址
     parser.add_argument('--resume', default='', type=str, help='resume from checkpoint')
     # 指定接着从哪个epoch数开始训练
     parser.add_argument('--start_epoch', default=0, type=int, help='start epoch')
     # 训练的总epoch数
-    parser.add_argument('--epochs', default=50, type=int, metavar='N',
+    parser.add_argument('--epochs', default=100, type=int, metavar='N',
                         help='number of total epochs to run')
     # 针对torch.optim.lr_scheduler.MultiStepLR的参数
-    parser.add_argument('--lr-steps', default=[30, 40], nargs='+', type=int, help='decrease lr every step-size epochs')
+    parser.add_argument('--lr-steps', default=[20, 30], nargs='+', type=int, help='decrease lr every step-size epochs')
     # 针对torch.optim.lr_scheduler.MultiStepLR的参数
     parser.add_argument('--lr-gamma', default=0.1, type=float, help='decrease lr by a factor of lr-gamma')
     # 学习率

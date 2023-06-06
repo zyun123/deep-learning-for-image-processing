@@ -91,7 +91,7 @@ class CocoKeypoint(data.Dataset):
         if self.transforms is not None:
             image, person_info = self.transforms(image, target)
 
-        return image, target
+        return image, person_info
 
     def __len__(self):
         return len(self.valid_person_list)
