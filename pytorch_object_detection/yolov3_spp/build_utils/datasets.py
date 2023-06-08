@@ -83,7 +83,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
 
         # batch index
         # 将数据划分到一个个batch中
-        bi = np.floor(np.arange(n) / batch_size).astype(np.int)
+        bi = np.floor(np.arange(n) / batch_size).astype(np.int64)
         # 记录数据集划分后的总batch数
         nb = bi[-1] + 1  # number of batches
 
@@ -99,7 +99,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
         # Define labels
         # 遍历设置图像对应的label路径
         # (./my_yolo_dataset/train/images/2009_004012.jpg) -> (./my_yolo_dataset/train/labels/2009_004012.txt)
-        self.label_files = [x.replace("images", "labels").replace(os.path.splitext(x)[-1], ".txt")
+        self.label_files = [x.replace("/images", "/labels").replace(os.path.splitext(x)[-1], ".txt")
                             for x in self.img_files]
 
         # Read image shapes (wh)
@@ -158,7 +158,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                 elif mini > 1:
                     shapes[i] = [1, 1 / mini]
             # 计算每个batch输入网络的shape值(向上设置为32的整数倍)
-            self.batch_shapes = np.ceil(np.array(shapes) * img_size / 32. + pad).astype(np.int) * 32
+            self.batch_shapes = np.ceil(np.array(shapes) * img_size / 32. + pad).astype(np.int64) * 32
 
         # cache labels
         self.imgs = [None] * n  # n为图像总数

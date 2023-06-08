@@ -2,14 +2,15 @@
  
 import argparse
 import json
+import os
 import matplotlib.pyplot as plt
-import skimage.io as io
-# import cv2
-from labelme import utils
+# import skimage.io as io
+import cv2
+# from labelme import utils
 import numpy as np
 import glob
 import PIL.Image
- 
+# import cv2
  
 class MyEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -31,7 +32,7 @@ class labelme2coco(object):
         self.categories = []
         self.annotations = []
         # self.data_coco = {}
-        self.label = ["hardhat","oxygen_canister","breathing_mask"]
+        self.label = ["left_hand","right_hand","left_leg","right_leg"]
 
         self.annID = 1
         self.height = 0
@@ -53,17 +54,17 @@ class labelme2coco(object):
                         self.categories.append(self.categorie(label))
                         self.label.append(label)
                     points = shapes['points']  # 这里的point是用rectangle标注得到的，只有两个点，需要转成四个点
-                    points.append([points[0][0], points[1][1]])
-                    points.append([points[1][0], points[0][1]])
+                    # points.append([points[0][0], points[1][1]])
+                    # points.append([points[1][0], points[0][1]])
                     self.annotations.append(self.annotation(points, label, num))
                     self.annID += 1
 
  
     def image(self, data, num):
         image = {}
-        img = utils.img_b64_to_arr(data['imageData'])  # 解析原图片数据
+        # img = utils.img_b64_to_arr(data['imageData'])  # 解析原图片数据
         # img=io.imread(data['imagePath']) # 通过图片路径打开图片
-        # img = cv2.imread(data['imagePath'], 0)
+        img = cv2.imread(os.path.join(root_dir,data['imagePath']))
         height, width = img.shape[:2]
         img = None
         image['height'] = height
@@ -90,7 +91,9 @@ class labelme2coco(object):
         annotation['image_id'] = num + 1
         # annotation['bbox'] = str(self.getbbox(points)) # 使用list保存json文件时报错（不知道为什么）
         # list(map(int,a[1:-1].split(','))) a=annotation['bbox'] 使用该方式转成list
-        annotation['bbox'] = list(map(float, self.getbbox(points)))
+        # annotation['bbox'] = list(map(float, self.getbbox(points)))
+        annotation['bbox'] = self.getbbox(points)
+
         annotation['area'] = annotation['bbox'][2] * annotation['bbox'][3]
         # annotation['category_id'] = self.getcatid(label)
         annotation['category_id'] = self.getcatid(label)  # 注意，源代码默认为1
@@ -107,10 +110,20 @@ class labelme2coco(object):
         # img = np.zeros([self.height,self.width],np.uint8)
         # cv2.polylines(img, [np.asarray(points)], True, 1, lineType=cv2.LINE_AA)  # 画边界线
         # cv2.fillPoly(img, [np.asarray(points)], 1)  # 画多边形 内部像素值为1
-        polygons = points
+        # polygons = points
  
-        mask = self.polygons_to_mask([self.height, self.width], polygons)
-        return self.mask2box(mask)
+        # mask = self.polygons_to_mask([self.height, self.width], polygons)
+        # return self.mask2box(mask)
+        if points[0][1] > points[1][1]:
+            height = points[0][1] - points[1][1]
+            points[0][1] = points[0][1] - height
+            points[1][1] = points[1][1] + height
+        assert len(points) == 2
+        assert points[1][0] > points[0][0]
+        assert points[1][1] > points[0][1]
+        assert len(points) == 2
+            
+        return [points[0][0],points[0][1],points[1][0]-points[0][0],points[1][1]-points[0][1]]
  
     def mask2box(self, mask):
         '''从mask反算出其边框
@@ -157,8 +170,9 @@ class labelme2coco(object):
         json.dump(self.data_coco, open(self.save_json_path, 'w'), indent=4, cls=MyEncoder)  # indent=4 更加美观显示
  
  
- 
-labelme_json = glob.glob('/911G/data/hard_hat/test/*.json')
+root_dir = "/911G/data/cure_images/一楼拷贝数据/up_nei/middle_up_nei/test"
+labelme_json = glob.glob(os.path.join(root_dir,'*.json'))
 
+res_json = root_dir +".json"
  
-labelme2coco(labelme_json, '/911G/data/hard_hat/test.json')
+labelme2coco(labelme_json, res_json)

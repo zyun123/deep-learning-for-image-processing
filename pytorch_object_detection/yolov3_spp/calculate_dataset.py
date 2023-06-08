@@ -6,8 +6,8 @@
 """
 import os
 
-train_annotation_dir = "/911G/data/hard_hat/yolo_dataset/train/labels"
-val_annotation_dir = "/911G/data/hard_hat/yolo_dataset/test/labels"
+train_annotation_dir = "/911G/data/cure_images/一楼拷贝数据/up_nei/middle_up_nei/yolo_dataset/train/labels"
+val_annotation_dir = "/911G/data/cure_images/一楼拷贝数据/up_nei/middle_up_nei/yolo_dataset/test/labels"
 classes_label = "./data/my_data_label.names"
 cfg_path = "./cfg/yolov3-spp.cfg"
 

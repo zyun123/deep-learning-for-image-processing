@@ -248,7 +248,7 @@ def train(hyp):
                         'best_map': best_map}
                     if opt.amp:
                         save_files["scaler"] = scaler.state_dict()
-                    torch.save(save_files, "/911G/EightModelOutputs/models/harhat_512_512_02/yolov3spp-{}.pt".format(epoch))
+                    torch.save(save_files, f"{opt.output_dir}/yolov3spp-{epoch}.pt")
             else:
                 # only save best weights
                 if best_map == coco_mAP:
@@ -267,7 +267,9 @@ def train(hyp):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--epochs', type=int, default=200)
-    parser.add_argument('--batch-size', type=int, default=8)
+    parser.add_argument('--output-dir', default="/911G/EightModelOutputs/models/hand_leg_512_02")
+
+    parser.add_argument('--batch-size', type=int, default=4)
     parser.add_argument('--cfg', type=str, default='cfg/my_yolov3.cfg', help="*.cfg path")
     parser.add_argument('--data', type=str, default='data/my_data.data', help='*.data path')
     parser.add_argument('--hyp', type=str, default='cfg/hyp.yaml', help='hyperparameters path')
@@ -288,6 +290,8 @@ if __name__ == '__main__':
     parser.add_argument("--amp", default=False, help="Use torch.cuda.amp for mixed precision training")
     opt = parser.parse_args()
 
+    os.makedirs(opt.output_dir,exist_ok=True)
+
     # 检查文件是否存在
     opt.cfg = check_file(opt.cfg)
     opt.data = check_file(opt.data)
@@ -298,5 +302,5 @@ if __name__ == '__main__':
         hyp = yaml.load(f, Loader=yaml.FullLoader)
 
     print('Start Tensorboard with "tensorboard --logdir=runs", view at http://localhost:6006/')
-    tb_writer = SummaryWriter(log_dir="/911G/EightModelOutputs/models/harhat_512_512",comment=opt.name)
+    tb_writer = SummaryWriter(log_dir=opt.output_dir,comment=opt.name)
     train(hyp)

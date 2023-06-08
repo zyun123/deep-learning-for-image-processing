@@ -6,9 +6,9 @@ import os
 
 def arg_parser():
     parser = argparse.ArgumentParser('code by rbj')
-    parser.add_argument('--annotation_path', type=str,default='/911G/data/hard_hat/test.json')
+    parser.add_argument('--annotation_path', type=str,default='/911G/data/cure_images/一楼拷贝数据/up_nei/middle_up_nei/train.json')
     #生成的txt文件保存的目录
-    parser.add_argument('--save_base_path', type=str, default='/911G/data/hard_hat/yolo_dataset/test/labels')
+    parser.add_argument('--save_base_path', type=str, default='/911G/data/cure_images/一楼拷贝数据/up_nei/middle_up_nei/yolo_dataset/train/labels')
     args = parser.parse_args(args=[])
     #原网页中是args = parser.parse_args()会报错，改成这个以后解决了
     return args

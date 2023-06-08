@@ -17,9 +17,9 @@ def main():
     img_size = 512  # 必须是32的整数倍 [416, 512, 608]
     cfg = "cfg/my_yolov3.cfg"  # 改成生成的.cfg文件
     # weights = "weights/yolov3spp-voc-512.pt"  # 改成自己训练好的权重文件
-    weights = "/911G/EightModelOutputs/models/harhat_512_512_02/yolov3spp-154.pt"  # 改成自己训练好的权重文件
+    weights = "/911G/EightModelOutputs/models/hand_leg_512_02/yolov3spp-198.pt"  # 改成自己训练好的权重文件
     json_path = "./data/coco_classes.json"  # json标签文件
-    img_path = "/911G/data/hard_hat/train/205.jpg"
+    img_path = "/911G/data/temp/20221229新加手托脚托新数据/20230311_最新修改/middle_up_nei/test/m_up_nei_20221228151547322.jpg"
     assert os.path.exists(cfg), "cfg file {} dose not exist.".format(cfg)
     assert os.path.exists(weights), "weights file {} dose not exist.".format(weights)
     assert os.path.exists(json_path), "json file {} dose not exist.".format(json_path)
