@@ -19,10 +19,10 @@ def to_numpy(tensor):
 def main():
     img_size = 512  # 必须是32的整数倍 [416, 512, 608]
     cfg = "cfg/my_yolov3.cfg"
-    weights = "/911G/EightModelOutputs/models/harhat_512_512/yolov3spp-149.pt"
+    weights = "/911G/EightModelOutputs/models/hand_leg_512_02/yolov3spp-199.pt"
     assert os.path.exists(cfg), "cfg file does not exist..."
     assert os.path.exists(weights), "weights file does not exist..."
-
+    img_path = "/911G/data/cure_images/dynamic_up_nei/ori_img_01/middle_up_nei_20230316102838653.jpg"
     input_size = (img_size, img_size)  # [h, w]
 
     # create model
@@ -34,7 +34,7 @@ def main():
     # input to the model
     # [batch, channel, height, width]
     # x = torch.rand(1, 3, *input_size, requires_grad=True)
-    img_path = "/911G/data/hard_hat/test/111.jpg"
+    
     img_o = cv2.imread(img_path)  # BGR
     assert img_o is not None, "Image Not Found " + img_path
 
