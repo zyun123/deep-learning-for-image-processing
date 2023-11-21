@@ -370,7 +370,7 @@ class RandomHorizontalFlip(object):
 
 class KeypointToHeatMap(object):
     def __init__(self,
-                 heatmap_hw: Tuple[int, int] = (256 // 4, 192 // 4),
+                 heatmap_hw: Tuple[int, int] = (320 // 4, 320 // 4),
                  gaussian_sigma: int = 2,
                  keypoints_weights=None):
         self.heatmap_hw = heatmap_hw

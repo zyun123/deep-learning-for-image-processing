@@ -120,6 +120,7 @@ class EvalCOCOMetric:
             coco_pre = coco_true.loadRes(self.results_file_name)
 
             self.coco_evaluator = COCOeval(cocoGt=coco_true, cocoDt=coco_pre, iouType=self.iou_type)
+            self.coco_evaluator.params.kpt_oks_sigmas = np.array([0.25,0.25,0.25,0.25,0.25,0.25]) / 10
 
             self.coco_evaluator.evaluate()
             self.coco_evaluator.accumulate()

@@ -77,6 +77,7 @@ def evaluate(model, data_loader, device, flip=False, flip_pairs=None):
     header = "Test: "
 
     key_metric = EvalCOCOMetric(data_loader.dataset.coco, "keypoints", "key_results.json")
+    
     for image, targets in metric_logger.log_every(data_loader, 100, header):
         images = torch.stack([img.to(device) for img in image])
 
